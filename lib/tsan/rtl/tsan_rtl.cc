@@ -26,6 +26,9 @@
 #include "tsan_suppressions.h"
 #include "tsan_symbolize.h"
 #include "ubsan/ubsan_init.h"
+#if SANITIZER_RELACY_SCHEDULER
+#include "relacy/tsan_fiber.h"
+#endif
 
 #ifdef __SSE3__
 // <emmintrin.h> transitively includes <stdlib.h>,
@@ -410,6 +413,10 @@ void Initialize(ThreadState *thr) {
   }
 
   OnInitialize();
+
+#if SANITIZER_RELACY_SCHEDULER
+  _fiber_manager.Start();
+#endif
 }
 
 void MaybeSpawnBackgroundThread() {

@@ -4,6 +4,11 @@
 include(AddCompilerRT)
 include(SanitizerUtils)
 
+option(SANITIZER_RELACY_SCHEDULER "manually scheduler for thread" OFF)
+if (SANITIZER_RELACY_SCHEDULER)
+    add_definitions(-DSANITIZER_RELACY_SCHEDULER)
+endif()
+
 # Hoist the building of sanitizer_common on whether we're building either the
 # sanitizers or xray (or both).
 #

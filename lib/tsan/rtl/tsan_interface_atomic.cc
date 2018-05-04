@@ -25,6 +25,7 @@
 #include "tsan_flags.h"
 #include "tsan_interface.h"
 #include "tsan_rtl.h"
+#include "relacy/tsan_fiber.h"
 
 using namespace __tsan;  // NOLINT
 
@@ -522,54 +523,84 @@ static void AtomicStatInc(ThreadState *thr, uptr size, morder mo, StatType t) {
 extern "C" {
 SANITIZER_INTERFACE_ATTRIBUTE
 a8 __tsan_atomic8_load(const volatile a8 *a, morder mo) {
+#if SANITIZER_RELACY_SCHEDULER
+  _fiber_manager.Yield();
+#endif
   SCOPED_ATOMIC(Load, a, mo);
 }
 
 SANITIZER_INTERFACE_ATTRIBUTE
 a16 __tsan_atomic16_load(const volatile a16 *a, morder mo) {
+#if SANITIZER_RELACY_SCHEDULER
+  _fiber_manager.Yield();
+#endif
   SCOPED_ATOMIC(Load, a, mo);
 }
 
 SANITIZER_INTERFACE_ATTRIBUTE
 a32 __tsan_atomic32_load(const volatile a32 *a, morder mo) {
+#if SANITIZER_RELACY_SCHEDULER
+  _fiber_manager.Yield();
+#endif
   SCOPED_ATOMIC(Load, a, mo);
 }
 
 SANITIZER_INTERFACE_ATTRIBUTE
 a64 __tsan_atomic64_load(const volatile a64 *a, morder mo) {
+#if SANITIZER_RELACY_SCHEDULER
+  _fiber_manager.Yield();
+#endif
   SCOPED_ATOMIC(Load, a, mo);
 }
 
 #if __TSAN_HAS_INT128
 SANITIZER_INTERFACE_ATTRIBUTE
 a128 __tsan_atomic128_load(const volatile a128 *a, morder mo) {
+#if SANITIZER_RELACY_SCHEDULER
+  _fiber_manager.Yield();
+#endif
   SCOPED_ATOMIC(Load, a, mo);
 }
 #endif
 
 SANITIZER_INTERFACE_ATTRIBUTE
 void __tsan_atomic8_store(volatile a8 *a, a8 v, morder mo) {
+#if SANITIZER_RELACY_SCHEDULER
+  _fiber_manager.Yield();
+#endif
   SCOPED_ATOMIC(Store, a, v, mo);
 }
 
 SANITIZER_INTERFACE_ATTRIBUTE
 void __tsan_atomic16_store(volatile a16 *a, a16 v, morder mo) {
+#if SANITIZER_RELACY_SCHEDULER
+  _fiber_manager.Yield();
+#endif
   SCOPED_ATOMIC(Store, a, v, mo);
 }
 
 SANITIZER_INTERFACE_ATTRIBUTE
 void __tsan_atomic32_store(volatile a32 *a, a32 v, morder mo) {
+#if SANITIZER_RELACY_SCHEDULER
+  _fiber_manager.Yield();
+#endif
   SCOPED_ATOMIC(Store, a, v, mo);
 }
 
 SANITIZER_INTERFACE_ATTRIBUTE
 void __tsan_atomic64_store(volatile a64 *a, a64 v, morder mo) {
+#if SANITIZER_RELACY_SCHEDULER
+  _fiber_manager.Yield();
+#endif
   SCOPED_ATOMIC(Store, a, v, mo);
 }
 
 #if __TSAN_HAS_INT128
 SANITIZER_INTERFACE_ATTRIBUTE
 void __tsan_atomic128_store(volatile a128 *a, a128 v, morder mo) {
+#if SANITIZER_RELACY_SCHEDULER
+  _fiber_manager.Yield();
+#endif
   SCOPED_ATOMIC(Store, a, v, mo);
 }
 #endif
@@ -613,11 +644,17 @@ a16 __tsan_atomic16_fetch_add(volatile a16 *a, a16 v, morder mo) {
 
 SANITIZER_INTERFACE_ATTRIBUTE
 a32 __tsan_atomic32_fetch_add(volatile a32 *a, a32 v, morder mo) {
+#if SANITIZER_RELACY_SCHEDULER
+  _fiber_manager.Yield();
+#endif
   SCOPED_ATOMIC(FetchAdd, a, v, mo);
 }
 
 SANITIZER_INTERFACE_ATTRIBUTE
 a64 __tsan_atomic64_fetch_add(volatile a64 *a, a64 v, morder mo) {
+#if SANITIZER_RELACY_SCHEDULER
+  _fiber_manager.Yield();
+#endif
   SCOPED_ATOMIC(FetchAdd, a, v, mo);
 }
 

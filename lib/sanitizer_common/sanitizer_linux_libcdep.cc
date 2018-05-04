@@ -282,7 +282,11 @@ uptr ThreadSelf() {
 # if defined(__i386__)
   asm("mov %%gs:%c1,%0" : "=r"(descr_addr) : "i"(kThreadSelfOffset));
 # elif defined(__x86_64__)
+#if SANITIZER_RELACY_SCHEDULER
+  asm("mov %%fs:%c1,%0" : "=r"(descr_addr) : "i"(0)); // kThreadSelfOffset seems are not valid. See ELF TLS documentation
+#else
   asm("mov %%fs:%c1,%0" : "=r"(descr_addr) : "i"(kThreadSelfOffset));
+#endif
 # elif defined(__mips__)
   // MIPS uses TLS variant I. The thread pointer (in hardware register $29)
   // points to the end of the TCB + 0x7000. The pthread_descr structure is

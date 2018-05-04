@@ -46,12 +46,19 @@
 #include "tsan_mutexset.h"
 #include "tsan_ignoreset.h"
 #include "tsan_stack_trace.h"
+#if SANITIZER_RELACY_SCHEDULER
+#include "relacy/tsan_fiber.h"
+#endif
 
 #if SANITIZER_WORDSIZE != 64
 # error "ThreadSanitizer is supported only on 64-bit platforms"
 #endif
 
 namespace __tsan {
+
+#if SANITIZER_RELACY_SCHEDULER
+extern FiberManager _fiber_manager;
+#endif
 
 #if !SANITIZER_GO
 struct MapUnmapCallback;

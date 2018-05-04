@@ -3,6 +3,7 @@
 include_directories(..)
 
 set(TSAN_CFLAGS ${SANITIZER_COMMON_CFLAGS})
+
 # SANITIZER_COMMON_CFLAGS contains -fPIC, but it's performance-critical for
 # TSan runtime to be built with -fPIE to reduce the number of register spills.
 append_list_if(COMPILER_RT_HAS_FPIE_FLAG -fPIE TSAN_CFLAGS)
@@ -50,7 +51,8 @@ set(TSAN_SOURCES
   rtl/tsan_stat.cc
   rtl/tsan_suppressions.cc
   rtl/tsan_symbolize.cc
-  rtl/tsan_sync.cc)
+  rtl/tsan_sync.cc
+  rtl/relacy/tsan_generator_paths.cc)
 
 set(TSAN_CXX_SOURCES
   rtl/tsan_new_delete.cc)
@@ -65,7 +67,8 @@ elseif(UNIX)
   # Assume Linux
   list(APPEND TSAN_SOURCES
     rtl/tsan_platform_linux.cc
-    rtl/tsan_platform_posix.cc)
+    rtl/tsan_platform_posix.cc
+    rtl/relacy/tsan_fiber.cc)
 endif()
 
 set(TSAN_HEADERS
@@ -93,7 +96,9 @@ set(TSAN_HEADERS
   rtl/tsan_symbolize.h
   rtl/tsan_sync.h
   rtl/tsan_trace.h
-  rtl/tsan_update_shadow_word_inl.h)
+  rtl/tsan_update_shadow_word_inl.h
+  rtl/relacy/tsan_fiber.h
+  rtl/relacy/tsan_generator_paths.h)
 
 set(TSAN_RUNTIME_LIBRARIES)
 add_compiler_rt_component(tsan)

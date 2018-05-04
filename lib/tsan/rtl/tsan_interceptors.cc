@@ -31,6 +31,9 @@
 #include "tsan_rtl.h"
 #include "tsan_mman.h"
 #include "tsan_fd.h"
+#if SANITIZER_RELACY_SCHEDULER
+#include "relacy/tsan_fiber.h"
+#endif
 
 
 using namespace __tsan;  // NOLINT
@@ -928,6 +931,10 @@ struct ThreadParam {
 };
 
 extern "C" void *__tsan_thread_start_func(void *arg) {
+#if SANITIZER_RELACY_SCHEDULER
+  _fiber_manager.InitializeTLS();
+{
+#endif
   ThreadParam *p = (ThreadParam*)arg;
   void* (*callback)(void *arg) = p->callback;
   void *param = p->param;
@@ -951,14 +958,33 @@ extern "C" void *__tsan_thread_start_func(void *arg) {
     ProcWire(proc, thr);
     ThreadStart(thr, tid, GetTid(), /*workerthread*/ false);
     atomic_store(&p->tid, 0, memory_order_release);
+#if SANITIZER_RELACY_SCHEDULER
+    _fiber_manager.Yield(_fiber_manager.GetParent());
+#endif
   }
   void *res = callback(param);
   // Prevent the callback from being tail called,
   // it mixes up stack traces.
   volatile int foo = 42;
   foo++;
+#if !SANITIZER_RELACY_SCHEDULER
   return res;
+#endif
+
+#if SANITIZER_RELACY_SCHEDULER
 }
+  _fiber_manager.StopThread();
+  DestroyThreadState();
+  _fiber_manager.Yield();
+  return nullptr;
+#endif
+}
+
+#if SANITIZER_RELACY_SCHEDULER
+static void *empty_call(void *arg) {
+  return nullptr;
+}
+#endif
 
 TSAN_INTERCEPTOR(int, pthread_create,
     void *th, void *attr, void *(*callback)(void*), void * param) {
@@ -990,16 +1016,34 @@ TSAN_INTERCEPTOR(int, pthread_create,
   p.callback = callback;
   p.param = param;
   atomic_store(&p.tid, 0, memory_order_relaxed);
+#if SANITIZER_RELACY_SCHEDULER
+  FiberContext* fiber_context = nullptr;
+#endif
   int res = -1;
   {
     // Otherwise we see false positives in pthread stack manipulation.
     ScopedIgnoreInterceptors ignore;
     ThreadIgnoreBegin(thr, pc);
+#if SANITIZER_RELACY_SCHEDULER
+    fiber_context = _fiber_manager
+        .CreateFiber(th, attr,
+                     reinterpret_cast<void(*)()>(__tsan_thread_start_func),
+                     &p);
+    res = REAL(pthread_create)(th, attr, empty_call, &p);
+#else
     res = REAL(pthread_create)(th, attr, __tsan_thread_start_func, &p);
+#endif
     ThreadIgnoreEnd(thr, pc);
   }
+#if SANITIZER_RELACY_SCHEDULER
+  int tid = 0;
+#endif
   if (res == 0) {
+#if SANITIZER_RELACY_SCHEDULER
+    tid = ThreadCreate(thr, pc, *(uptr*)th, IsStateDetached(detached));
+#else
     int tid = ThreadCreate(thr, pc, *(uptr*)th, IsStateDetached(detached));
+#endif
     CHECK_NE(tid, 0);
     // Synchronization on p.tid serves two purposes:
     // 1. ThreadCreate must finish before the new thread starts.
@@ -1008,12 +1052,19 @@ TSAN_INTERCEPTOR(int, pthread_create,
     // 2. ThreadStart must finish before this thread continues.
     //    Otherwise, this thread can call pthread_detach and reset thr->sync
     //    before the new thread got a chance to acquire from it in ThreadStart.
+
     atomic_store(&p.tid, tid, memory_order_release);
+#if SANITIZER_RELACY_SCHEDULER
+    _fiber_manager.Yield(fiber_context);
+#endif
     while (atomic_load(&p.tid, memory_order_acquire) != 0)
       internal_sched_yield();
   }
   if (attr == &myattr)
     pthread_attr_destroy(&myattr);
+#if SANITIZER_RELACY_SCHEDULER
+  _fiber_manager.AddFiberContext(tid, fiber_context);
+#endif
   return res;
 }
 
@@ -1021,7 +1072,13 @@ TSAN_INTERCEPTOR(int, pthread_join, void *th, void **ret) {
   SCOPED_INTERCEPTOR_RAW(pthread_join, th, ret);
   int tid = ThreadTid(thr, pc, (uptr)th);
   ThreadIgnoreBegin(thr, pc);
+#if SANITIZER_RELACY_SCHEDULER
+  int res = 0;
+  _fiber_manager.Join(tid);
+  _fiber_manager.Yield();
+#else
   int res = BLOCK_REAL(pthread_join)(th, ret);
+#endif
   ThreadIgnoreEnd(thr, pc);
   if (res == 0) {
     ThreadJoin(thr, pc, tid);
