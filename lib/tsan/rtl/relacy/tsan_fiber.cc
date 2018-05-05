@@ -14,88 +14,107 @@
 #include <sys/syscall.h>
 
 namespace __tsan {
+namespace __relacy {
 
-unsigned long get_tls_addr()
-{
+FiberContext::FiberContext(void *fiber_context, char *tls, FiberContext *parent, int tid)
+    : ThreadContext(tid), ctx_(fiber_context), tls_(tls), parent_(parent) {
+}
+
+void *FiberContext::GetFiberContext() {
+  return ctx_;
+}
+
+void FiberContext::SetFiberContext(void *fiber_context) {
+  ctx_ = fiber_context;
+}
+
+char *FiberContext::GetTls() {
+  return tls_;
+}
+
+void FiberContext::SetTls(char *tls) {
+  tls_ = tls;
+}
+
+FiberContext *FiberContext::GetParent() {
+  return parent_;
+}
+
+void FiberContext::SetParent(FiberContext *parent) {
+  parent_ = parent;
+}
+
+unsigned long get_tls_addr() {
   unsigned long addr;
   asm("mov %%fs:0, %0" : "=r"(addr));
   return addr;
 }
 
-void set_tls_addr(unsigned long addr)
-{
+void set_tls_addr(unsigned long addr) {
   asm("mov %0, %%fs:0" : "+r"(addr));
 }
 
 
 FiberManager::FiberManager() {
-  FiberContext* current_thread = static_cast<FiberContext*>(InternalCalloc(1, sizeof(FiberContext)));
-  current_thread->ctx = InternalCalloc(1, sizeof(ucontext_t));
-  current_thread->parent = current_thread;
-  current_thread->tid = 0;
-  ucontext_t& context = *static_cast<ucontext_t*>(current_thread->ctx);
+  uptr stk_addr = 0;
+  uptr stk_size = 0;
+  InitTlsSize();
+  GetThreadStackAndTls(true, &stk_addr, &stk_size, &tls_addr_, &tls_size_);
+  tls_addr_ = get_tls_addr();
+
+  FiberContext *current_thread = static_cast<FiberContext *>(InternalCalloc(1, sizeof(FiberContext)));
+  new(current_thread) FiberContext{InternalCalloc(1, sizeof(ucontext_t)),
+                                   reinterpret_cast<char *>(tls_addr_) - tls_size_, current_thread, 0};
+  ucontext_t &context = *static_cast<ucontext_t *>(current_thread->GetFiberContext());
   context.uc_stack.ss_flags = 0;
   context.uc_link = nullptr;
 
-  uptr stk_addr = 0;
-  uptr stk_size = 0;
-
-  InitTlsSize();
-  GetThreadStackAndTls(true, &stk_addr, &stk_size, &tls_addr_, &tls_size_);
-
-  current_thread->tls = static_cast<char*>(InternalCalloc(tls_size_, 1));
-  tls_addr_ = get_tls_addr();
-  current_thread->tls = reinterpret_cast<char *>(get_tls_addr());
-  //internal_memcpy(current_thread->tls, reinterpret_cast<const void *>(tls_addr_), tls_size_);
-
-  tls_base_ = static_cast<char*>(InternalCalloc(tls_size_, 1));
+  tls_base_ = static_cast<char *>(InternalCalloc(tls_size_, 1));
 
   internal_memcpy(tls_base_, reinterpret_cast<const char *>(tls_addr_) - tls_size_, tls_size_);
-  uptr offset = (uptr)cur_thread() - (tls_addr_ - tls_size_);
+  uptr offset = (uptr) cur_thread() - (tls_addr_ - tls_size_);
   internal_memset(tls_base_ + offset, 0, sizeof(ThreadState));
 
-  running_.PushBack(current_thread);
-  current_thread_ = current_thread;
-  current_thread_->tls -= tls_size_;
-  //srand(static_cast<unsigned int>(time(nullptr)));
+  threads_box_.AddRunning(current_thread);
+  threads_box_.SetCurrentThread(current_thread);
 
   Start();
 }
 
-FiberContext* FiberManager::CreateFiber(void *th, void *attr, void (*callback)(), void * param) {
-  (void)th;
-  (void)attr;
+FiberContext *FiberManager::CreateFiber(void *th, void *attr, void (*callback)(), void *param) {
+  (void) th;
+  (void) attr;
 
-  FiberContext* fiber_context = static_cast<FiberContext*>(InternalCalloc(1, sizeof(FiberContext)));
-  fiber_context->ctx = static_cast<struct ucontext_t*>(InternalCalloc(1, sizeof(ucontext_t)));
-  if (getcontext((ucontext_t*)fiber_context->ctx) == -1) {
+  FiberContext *fiber_context = static_cast<FiberContext *>(InternalCalloc(1, sizeof(FiberContext)));
+  new(fiber_context) FiberContext{static_cast<struct ucontext_t *>(InternalCalloc(1, sizeof(ucontext_t)))};
+  if (getcontext(static_cast<ucontext_t *>(fiber_context->GetFiberContext())) == -1) {
     Printf("FATAL: ThreadSanitizer getcontext error in the moment creating fiber\n");
     Die();
   }
 
-  ucontext_t& context = *static_cast<ucontext_t*>(fiber_context->ctx);
+  ucontext_t &context = *static_cast<ucontext_t *>(fiber_context->GetFiberContext());
   context.uc_stack.ss_sp = InternalCalloc(FIBER_STACK_SIZE, sizeof(char));
   context.uc_stack.ss_size = FIBER_STACK_SIZE;
   context.uc_stack.ss_flags = 0;
-  context.uc_link = static_cast<struct ucontext_t *>(current_thread_->ctx);
-  fiber_context->parent = current_thread_;
-  fiber_context->tls = static_cast<char *>(InternalCalloc(tls_size_, 1));
-  internal_memcpy(fiber_context->tls, tls_base_, tls_size_);
-  makecontext(static_cast<ucontext_t *>(fiber_context->ctx), callback, 1, param);
+  context.uc_link = static_cast<struct ucontext_t *>(static_cast<FiberContext*>(threads_box_.GetCurrentThread())->GetFiberContext());
+  fiber_context->SetParent(static_cast<FiberContext*>(threads_box_.GetCurrentThread()));
+  fiber_context->SetTls(static_cast<char *>(InternalCalloc(tls_size_, 1)));
+  internal_memcpy(fiber_context->GetTls(), tls_base_, tls_size_);
+  makecontext(static_cast<ucontext_t *>(fiber_context->GetFiberContext()), callback, 1, param);
   return fiber_context;
 }
 
-void FiberManager::Yield(FiberContext* context) {
+void FiberManager::Yield(FiberContext *context) {
   //current_thread_->ApplyChanges(tls_addr_);
-  FiberContext* old_thread = current_thread_;
-  current_thread_ = context;
+  FiberContext *old_thread = static_cast<FiberContext*>(threads_box_.GetCurrentThread());
+  threads_box_.SetCurrentThread(context);
 
 
   //uptr offset = (uptr)cur_thread() - tls_addr_;
   //internal_memcpy(old_thread->tls + offset, reinterpret_cast<const void *>(tls_addr_ + offset), sizeof(ThreadState));
   //internal_memcpy(reinterpret_cast<char *>(tls_addr_  + offset), current_thread_->tls + offset, sizeof(ThreadState));
-  int res = swapcontext(static_cast<struct ucontext_t *>(old_thread->ctx),
-                        static_cast<const struct ucontext_t *>(current_thread_->ctx));
+  int res = swapcontext(static_cast<struct ucontext_t *>(old_thread->GetFiberContext()),
+                        static_cast<const struct ucontext_t *>(static_cast<FiberContext*>(threads_box_.GetCurrentThread())->GetFiberContext()));
 
   InitializeTLS();
 
@@ -105,54 +124,31 @@ void FiberManager::Yield(FiberContext* context) {
   }
 }
 
-void FiberManager::AddFiberContext(int tid, FiberContext* context) {
-  context->tid = tid;
-  running_.PushBack(context);
+void FiberManager::AddFiberContext(int tid, FiberContext *context) {
+  context->SetTid(tid);
+  threads_box_.AddRunning(context);
 }
 
 void FiberManager::YieldByTid(int tid) {
-  for (uptr i = 0; i < running_.Size(); i++) {
-    if (running_[i]->tid == tid)
-    {
-      Yield(running_[i]);
-      return;
-    }
-  }
-
-  Printf("FATAL: ThreadSanitizer yield error because tid is not found\n");
-  Die();
+  Yield(static_cast<FiberContext*>(threads_box_.GetRunningByTid(tid)));
 }
 
 void FiberManager::YieldByIndex(uptr index) {
-  if (index >= running_.Size()) {
-    Printf("FATAL: ThreadSanitizer index out of bound in yield by index\n");
-    Die();
-  }
-
-  Yield(running_[index]);
+  Yield(static_cast<FiberContext*>(threads_box_.GetRunningByIndex(index)));
 }
 
 int FiberManager::MaxRunningTid() {
-  int m = 0;
-  for (int i = 0; i < running_.Size(); i++) {
-    m = max(running_[i]->tid, m);
-  }
-  return m;
+  return threads_box_.MaxRunningTid();
 }
 
 bool FiberManager::IsRunningTid(int tid) {
-  for (int i = 0; i < running_.Size(); i++) {
-    if (running_[i]->tid == tid) {
-      return true;
-    }
-  }
-  return false;
+  return threads_box_.ContainsRunningByTid(tid);
 }
 
-  RandomGenerator *generator_;
+RandomGenerator *generator_;
 
 void FiberManager::Yield() {
-  if (running_.Size() == 0) {
+  if (threads_box_.GetCountRunning() == 0) {
     Printf("FATAL: ThreadSanitizer yield count threads == 0\n");
     Die();
   }
@@ -166,63 +162,54 @@ void FiberManager::Yield() {
   }
 
   YieldByTid(tid);*/
-  YieldByIndex(static_cast<uptr>(generator_->Rand(static_cast<int>(running_.Size()))));
+  YieldByIndex(static_cast<uptr>(generator_->Rand(static_cast<int>(threads_box_.GetCountRunning()))));
 }
 
 
-FiberContext* FiberManager::GetParent() {
-  return current_thread_->parent;
+FiberContext *FiberManager::GetParent() {
+  return static_cast<FiberContext*>(threads_box_.GetCurrentThread())->GetParent();
 }
 
 void FiberManager::Join(int wait_tid) {
-  for (uptr i = 0; i < stoped_.Size(); i++) {
-    if (stoped_[i]->tid == wait_tid) {
-      return;
-    }
+  if (threads_box_.ContainsStoppedByTid(wait_tid)) {
+    return;
   }
 
-  if (running_.Size() == 0) {
+  if (threads_box_.GetCountRunning() == 0) {
     Printf("FATAL: ThreadSanitizer joining last thread\n");
     Die();
   }
 
-  FiberContext* context = nullptr;
-
-  for (uptr i = 0; i < running_.Size(); i++) {
-    if (current_thread_->tid == running_[i]->tid) {
-      context = running_[i];
-      running_[i] = running_[running_.Size() - 1];
-      running_.PopBack();
-      break;
-    }
-  }
+  ThreadContext *context = threads_box_.ExtractRunningByTid(static_cast<FiberContext*>(threads_box_.GetCurrentThread())->GetTid());
 
   if (context == nullptr) {
     Printf("FATAL: ThreadSanitizer is not existing thread\n");
     Die();
   }
 
-  joining_.PushBack(JoinContext { wait_tid, context });
+  ThreadContext* wait_context = threads_box_.GetRunningByTid(wait_tid);
+
+  if (wait_context == nullptr) {
+    wait_context = threads_box_.GetWaitingByTid(wait_tid);
+  }
+
+  if (wait_context == nullptr) {
+    wait_context = threads_box_.GetSlepingByTid(wait_tid);
+  }
+
+  if (wait_context == nullptr) {
+    wait_context = threads_box_.GetStoppedByTid(wait_tid);
+  }
+
+  if (wait_context == nullptr) {
+    wait_context = threads_box_.GetJoiningByTid(wait_tid).GetCurrentThread();
+  }
+  threads_box_.AddJoining(JoinContext { context, wait_context });
 }
 
 void FiberManager::StopThread() {
-  for (uptr i = 0; i < running_.Size(); i++) {
-    if (current_thread_->tid == running_[i]->tid) {
-      stoped_.PushBack(current_thread_);
-      running_[i] = running_[running_.Size() - 1];
-      running_.PopBack();
-      break;
-    }
-  }
-
-  for (int i = 0; i < (int)joining_.Size(); i++) {
-    if (joining_[i].waiting_tid == current_thread_->tid) {
-      running_.PushBack(joining_[i].thread_info);
-      joining_[i] = joining_[joining_.Size() - 1];
-      joining_.PopBack();
-      i--;
-    }
-  }
+  threads_box_.AddStopped(threads_box_.ExtractRunningByTid(threads_box_.GetCurrentThread()->GetTid()));
+  threads_box_.WakeupJoiningByWaitTid(threads_box_.GetCurrentThread()->GetTid());
 }
 
 
@@ -234,7 +221,7 @@ void FiberManager::Start() {
   if (generator_ == nullptr) {
     generator_ = new RandomGenerator();
   }
-  while(true) {
+  while (true) {
     //paths_->Start();
     //uptr offset = (uptr)&cur_thread_placeholder - tls_addr_;
     //internal_memcpy(reinterpret_cast<char *>(tls_addr_  + offset), current_thread_->tls + offset, sizeof(ThreadState));
@@ -261,11 +248,7 @@ void FiberManager::Start() {
   }
 }
 
-FiberContext* FiberManager::GetCurrent() {
-  return current_thread_;
-}
-
-void* FiberManager::CreateSharedMemory(uptr size) {
+void *FiberManager::CreateSharedMemory(uptr size) {
   // Our memory buffer will be readable and writable:
   int protection = PROT_READ | PROT_WRITE;
 
@@ -280,12 +263,14 @@ void* FiberManager::CreateSharedMemory(uptr size) {
 }
 
 void FiberManager::InitializeTLS() {
-  uptr descr_addr = (uptr)current_thread_->tls + tls_size_;
+  uptr descr_addr = (uptr) static_cast<FiberContext*>(threads_box_.GetCurrentThread())->GetTls() + tls_size_;
   set_tls_addr(descr_addr);
 }
 
+}
+
 #if SANITIZER_RELACY_SCHEDULER
-FiberManager _fiber_manager;
+__relacy::FiberManager _fiber_manager;
 #endif
 
 }

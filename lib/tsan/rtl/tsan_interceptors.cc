@@ -1017,7 +1017,7 @@ TSAN_INTERCEPTOR(int, pthread_create,
   p.param = param;
   atomic_store(&p.tid, 0, memory_order_relaxed);
 #if SANITIZER_RELACY_SCHEDULER
-  FiberContext* fiber_context = nullptr;
+  __relacy::FiberContext* fiber_context = nullptr;
 #endif
   int res = -1;
   {

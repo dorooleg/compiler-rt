@@ -52,7 +52,8 @@ set(TSAN_SOURCES
   rtl/tsan_suppressions.cc
   rtl/tsan_symbolize.cc
   rtl/tsan_sync.cc
-  rtl/relacy/tsan_generator_paths.cc)
+  rtl/relacy/tsan_generator_paths.cc
+  rtl/relacy/tsan_threads_box.cc)
 
 set(TSAN_CXX_SOURCES
   rtl/tsan_new_delete.cc)
@@ -98,7 +99,8 @@ set(TSAN_HEADERS
   rtl/tsan_trace.h
   rtl/tsan_update_shadow_word_inl.h
   rtl/relacy/tsan_fiber.h
-  rtl/relacy/tsan_generator_paths.h)
+  rtl/relacy/tsan_generator_paths.h
+  rtl/relacy/tsan_threads_box.h)
 
 set(TSAN_RUNTIME_LIBRARIES)
 add_compiler_rt_component(tsan)

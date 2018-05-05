@@ -1,0 +1,8 @@
+//
+// Created by oleg on 05.05.18.
+//
+
+#ifndef TSAN_FIXED_WINDOW_SCHEDULER_H
+#define TSAN_FIXED_WINDOW_SCHEDULER_H
+
+#endif //TSAN_FIXED_WINDOW_SCHEDULER_H

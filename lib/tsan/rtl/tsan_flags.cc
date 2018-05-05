@@ -76,7 +76,6 @@ void InitializeFlags(Flags *f, const char *env) {
   FlagParser parser;
   RegisterTsanFlags(&parser, f);
   RegisterCommonFlags(&parser);
-
 #if TSAN_CONTAINS_UBSAN
   __ubsan::Flags *uf = __ubsan::flags();
   uf->SetDefaults();
