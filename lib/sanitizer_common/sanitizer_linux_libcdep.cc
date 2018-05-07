@@ -283,7 +283,8 @@ uptr ThreadSelf() {
   asm("mov %%gs:%c1,%0" : "=r"(descr_addr) : "i"(kThreadSelfOffset));
 # elif defined(__x86_64__)
 #if SANITIZER_RELACY_SCHEDULER
-  asm("mov %%fs:%c1,%0" : "=r"(descr_addr) : "i"(0)); // kThreadSelfOffset seems are not valid. See ELF TLS documentation
+  // kThreadSelfOffset seems are not valid. See ELF TLS documentation
+  asm("mov %%fs:%c1,%0" : "=r"(descr_addr) : "i"(0));
 #else
   asm("mov %%fs:%c1,%0" : "=r"(descr_addr) : "i"(kThreadSelfOffset));
 #endif

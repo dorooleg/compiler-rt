@@ -32,7 +32,7 @@
 #include "tsan_mman.h"
 #include "tsan_fd.h"
 #if SANITIZER_RELACY_SCHEDULER
-#include "relacy/tsan_fiber.h"
+#include "relacy/tsan_scheduler_engine.h"
 #endif
 
 
@@ -965,14 +965,21 @@ extern "C" void *__tsan_thread_start_func(void *arg) {
   void *res = callback(param);
   // Prevent the callback from being tail called,
   // it mixes up stack traces.
+#if !SANITIZER_RELACY_SCHEDULER
   volatile int foo = 42;
   foo++;
-#if !SANITIZER_RELACY_SCHEDULER
   return res;
 #endif
 
 #if SANITIZER_RELACY_SCHEDULER
+  if (_fiber_manager.GetPlatformType() == __relacy::PlatformType::OS) {
+    volatile int foo = 42;
+    foo++;
+    return res;
+  }
 }
+  volatile int foo = 42;
+  foo++;
   _fiber_manager.StopThread();
   DestroyThreadState();
   _fiber_manager.Yield();
@@ -1025,11 +1032,15 @@ TSAN_INTERCEPTOR(int, pthread_create,
     ScopedIgnoreInterceptors ignore;
     ThreadIgnoreBegin(thr, pc);
 #if SANITIZER_RELACY_SCHEDULER
-    fiber_context = _fiber_manager
-        .CreateFiber(th, attr,
-                     reinterpret_cast<void(*)()>(__tsan_thread_start_func),
-                     &p);
-    res = REAL(pthread_create)(th, attr, empty_call, &p);
+    if (_fiber_manager.GetPlatformType() != __relacy::PlatformType::OS) {
+      fiber_context = _fiber_manager
+          .CreateFiber(th, attr,
+                       reinterpret_cast<void(*)()>(__tsan_thread_start_func),
+                       &p);
+      res = REAL(pthread_create)(th, attr, empty_call, &p);
+    } else {
+      res = REAL(pthread_create)(th, attr, __tsan_thread_start_func, &p);
+    }
 #else
     res = REAL(pthread_create)(th, attr, __tsan_thread_start_func, &p);
 #endif
@@ -1074,8 +1085,12 @@ TSAN_INTERCEPTOR(int, pthread_join, void *th, void **ret) {
   ThreadIgnoreBegin(thr, pc);
 #if SANITIZER_RELACY_SCHEDULER
   int res = 0;
-  _fiber_manager.Join(tid);
-  _fiber_manager.Yield();
+  if (_fiber_manager.GetPlatformType() == __relacy::PlatformType::OS) {
+    _fiber_manager.Join(tid);
+    _fiber_manager.Yield();
+  } else {
+    res = BLOCK_REAL(pthread_join)(th, ret);
+  }
 #else
   int res = BLOCK_REAL(pthread_join)(th, ret);
 #endif

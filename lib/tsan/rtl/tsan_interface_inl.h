@@ -20,7 +20,9 @@ using namespace __tsan;  // NOLINT
 
 void __tsan_read1(void *addr) {
 #if SANITIZER_RELACY_SCHEDULER
-  if (_fiber_manager.tls_addr_ <= (uptr)addr && (uptr)addr <= _fiber_manager.tls_addr_ + _fiber_manager.tls_size_) {
+  if (_fiber_manager.GetPlatformType() != __relacy::PlatformType::OS
+    && _fiber_manager.tls_addr_ <= (uptr)addr
+    && (uptr)addr <= _fiber_manager.tls_addr_ + _fiber_manager.tls_size_) {
     //_fiber_manager.GetCurrent()->Read(addr, 1, _fiber_manager.tls_addr_);
     return;
   }
@@ -30,7 +32,9 @@ void __tsan_read1(void *addr) {
 
 void __tsan_read2(void *addr) {
 #if SANITIZER_RELACY_SCHEDULER
-  if (_fiber_manager.tls_addr_ <= (uptr)addr && (uptr)addr <= _fiber_manager.tls_addr_ + _fiber_manager.tls_size_) {
+  if (_fiber_manager.GetPlatformType() != __relacy::PlatformType::OS
+    && _fiber_manager.tls_addr_ <= (uptr)addr
+    && (uptr)addr <= _fiber_manager.tls_addr_ + _fiber_manager.tls_size_) {
     //_fiber_manager.GetCurrent()->Read(addr, 2, _fiber_manager.tls_addr_);
     return;
   }
@@ -40,7 +44,9 @@ void __tsan_read2(void *addr) {
 
 void __tsan_read4(void *addr) {
 #if SANITIZER_RELACY_SCHEDULER
-  if (_fiber_manager.tls_addr_ <= (uptr)addr && (uptr)addr <= _fiber_manager.tls_addr_ + _fiber_manager.tls_size_) {
+  if (_fiber_manager.GetPlatformType() != __relacy::PlatformType::OS
+    && _fiber_manager.tls_addr_ <= (uptr)addr
+    && (uptr)addr <= _fiber_manager.tls_addr_ + _fiber_manager.tls_size_) {
     //_fiber_manager.GetCurrent()->Read(addr, 4, _fiber_manager.tls_addr_);
     return;
   }
@@ -50,7 +56,9 @@ void __tsan_read4(void *addr) {
 
 void __tsan_read8(void *addr) {
 #if SANITIZER_RELACY_SCHEDULER
-  if (_fiber_manager.tls_addr_ <= (uptr)addr && (uptr)addr <= _fiber_manager.tls_addr_ + _fiber_manager.tls_size_) {
+  if (_fiber_manager.GetPlatformType() != __relacy::PlatformType::OS
+    && _fiber_manager.tls_addr_ <= (uptr)addr
+    && (uptr)addr <= _fiber_manager.tls_addr_ + _fiber_manager.tls_size_) {
     //_fiber_manager.GetCurrent()->Read(addr, 8, _fiber_manager.tls_addr_);
     return;
   }
@@ -60,7 +68,9 @@ void __tsan_read8(void *addr) {
 
 void __tsan_write1(void *addr) {
 #if SANITIZER_RELACY_SCHEDULER
-  if (_fiber_manager.tls_addr_ <= (uptr)addr && (uptr)addr <= _fiber_manager.tls_addr_ + _fiber_manager.tls_size_) {
+  if (_fiber_manager.GetPlatformType() != __relacy::PlatformType::OS
+    && _fiber_manager.tls_addr_ <= (uptr)addr
+    && (uptr)addr <= _fiber_manager.tls_addr_ + _fiber_manager.tls_size_) {
     //_fiber_manager.GetCurrent()->Write(addr, 1, _fiber_manager.tls_addr_);
     return;
   }
@@ -70,7 +80,9 @@ void __tsan_write1(void *addr) {
 
 void __tsan_write2(void *addr) {
 #if SANITIZER_RELACY_SCHEDULER
-  if (_fiber_manager.tls_addr_ <= (uptr)addr && (uptr)addr <= _fiber_manager.tls_addr_ + _fiber_manager.tls_size_) {
+  if (_fiber_manager.GetPlatformType() != __relacy::PlatformType::OS
+    && _fiber_manager.tls_addr_ <= (uptr)addr
+    && (uptr)addr <= _fiber_manager.tls_addr_ + _fiber_manager.tls_size_) {
     //_fiber_manager.GetCurrent()->Write(addr, 2, _fiber_manager.tls_addr_);
     return;
   }
@@ -80,7 +92,9 @@ void __tsan_write2(void *addr) {
 
 void __tsan_write4(void *addr) {
 #if SANITIZER_RELACY_SCHEDULER
-  if (_fiber_manager.tls_addr_ <= (uptr)addr && (uptr)addr <= _fiber_manager.tls_addr_ + _fiber_manager.tls_size_) {
+  if (_fiber_manager.GetPlatformType() != __relacy::PlatformType::OS
+    && _fiber_manager.tls_addr_ <= (uptr)addr
+    && (uptr)addr <= _fiber_manager.tls_addr_ + _fiber_manager.tls_size_) {
     //_fiber_manager.GetCurrent()->Write(addr, 4, _fiber_manager.tls_addr_);
     return;
   }
@@ -90,7 +104,9 @@ void __tsan_write4(void *addr) {
 
 void __tsan_write8(void *addr) {
 #if SANITIZER_RELACY_SCHEDULER
-  if (_fiber_manager.tls_addr_ <= (uptr)addr && (uptr)addr <= _fiber_manager.tls_addr_ + _fiber_manager.tls_size_) {
+  if (_fiber_manager.GetPlatformType() != __relacy::PlatformType::OS
+    && _fiber_manager.tls_addr_ <= (uptr)addr
+    && (uptr)addr <= _fiber_manager.tls_addr_ + _fiber_manager.tls_size_) {
     //_fiber_manager.GetCurrent()->Write(addr, 8, _fiber_manager.tls_addr_);
     return;
   }

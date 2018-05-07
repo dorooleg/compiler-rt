@@ -3,48 +3,11 @@
 
 #include <rtl/tsan_defs.h>
 #include "sanitizer_common/sanitizer_vector.h"
+#include "tsan_thread_context.h"
+#include "tsan_type_traits.h"
 
 namespace __tsan {
 namespace __relacy {
-
-template<bool B, class T = void>
-struct enable_if {};
-
-template<class T>
-struct enable_if<true, T> { typedef T type; };
-
-
-template< class T > struct is_pointer_helper   { constexpr static bool value = false; };
-template< class T > struct is_pointer_helper<T*> { constexpr static bool value = true; };
-
-class ThreadContext {
-  public:
-   explicit ThreadContext(int tid = 0);
-
-   int GetTid() const;
-
-   void SetTid(int tid);
-
-  private:
-   int tid_;
-};
-
-class JoinContext {
-  public:
-   JoinContext(ThreadContext *current_thread, ThreadContext *wait_thread);
-
-   int GetTid() const;
-
-   int GetWaitTid() const;
-
-   ThreadContext* GetCurrentThread();
-
-   ThreadContext* GetWaitThread();
-
-  private:
-   ThreadContext *wait_thread_;
-   ThreadContext *current_thread_;
-};
 
 class ThreadsBox {
   public:
@@ -78,7 +41,7 @@ class ThreadsBox {
 
   private:
    template<typename T>
-   typename enable_if<!is_pointer_helper<T>::value, int>::type MaxTid(const Vector<T> &threads) const {
+   typename enable_if<!is_pointer<T>::value, int>::type MaxTid(const Vector<T> &threads) const {
      int m = 0;
      for (int i = 0; i < threads.Size(); i++) {
        m = max(threads[i].GetTid(), m);
@@ -87,7 +50,7 @@ class ThreadsBox {
    }
 
    template<typename T>
-   typename enable_if<is_pointer_helper<T>::value, int>::type MaxTid(const Vector<T> &threads) const {
+   typename enable_if<is_pointer<T>::value, int>::type MaxTid(const Vector<T> &threads) const {
      int m = 0;
      for (int i = 0; i < threads.Size(); i++) {
        m = max(threads[i]->GetTid(), m);
@@ -96,7 +59,7 @@ class ThreadsBox {
    }
 
    template<typename T>
-   typename enable_if<!is_pointer_helper<T>::value, bool>::type ContainsByTid(int tid, const Vector<T> &threads) const {
+   typename enable_if<!is_pointer<T>::value, bool>::type ContainsByTid(int tid, const Vector<T> &threads) const {
      for (uptr i = 0; i < threads.Size(); i++) {
        if (threads[i].GetTid() == tid) {
          return true;
@@ -106,7 +69,7 @@ class ThreadsBox {
    }
 
    template<typename T>
-   typename enable_if<is_pointer_helper<T>::value, bool>::type ContainsByTid(int tid, const Vector<T> &threads) const {
+   typename enable_if<is_pointer<T>::value, bool>::type ContainsByTid(int tid, const Vector<T> &threads) const {
      for (uptr i = 0; i < threads.Size(); i++) {
        if (threads[i]->GetTid() == tid) {
          return true;
@@ -116,7 +79,7 @@ class ThreadsBox {
    }
 
    template<typename T>
-   typename enable_if<!is_pointer_helper<T>::value, T>::type GetByTid(int tid, Vector<T> &threads) {
+   typename enable_if<!is_pointer<T>::value, T>::type GetByTid(int tid, Vector<T> &threads) {
      for (uptr i = 0; i < threads.Size(); i++) {
        if (threads[i].GetTid() == tid) {
          return threads[i];
@@ -127,7 +90,7 @@ class ThreadsBox {
    }
 
    template<typename T>
-   typename enable_if<!is_pointer_helper<T>::value, T>::type ExtractByTid(int tid, Vector<T> &threads) {
+   typename enable_if<!is_pointer<T>::value, T>::type ExtractByTid(int tid, Vector<T> &threads) {
      for (uptr i = 0; i < threads.Size(); i++) {
        if (threads[i].GetTid() == tid) {
          T context = threads[i];
@@ -141,7 +104,7 @@ class ThreadsBox {
    }
 
    template<typename T>
-   typename enable_if<is_pointer_helper<T>::value, T>::type ExtractByTid(int tid, Vector<T> &threads) {
+   typename enable_if<is_pointer<T>::value, T>::type ExtractByTid(int tid, Vector<T> &threads) {
      for (uptr i = 0; i < threads.Size(); i++) {
        if (threads[i]->GetTid() == tid) {
          T context = threads[i];
@@ -154,7 +117,7 @@ class ThreadsBox {
    }
 
    template<typename T>
-   typename enable_if<is_pointer_helper<T>::value, T>::type GetByTid(int tid, Vector<T> &threads) {
+   typename enable_if<is_pointer<T>::value, T>::type GetByTid(int tid, Vector<T> &threads) {
      for (uptr i = 0; i < threads.Size(); i++) {
        if (threads[i]->GetTid() == tid) {
          return threads[i];

@@ -53,7 +53,8 @@ set(TSAN_SOURCES
   rtl/tsan_symbolize.cc
   rtl/tsan_sync.cc
   rtl/relacy/tsan_generator_paths.cc
-  rtl/relacy/tsan_threads_box.cc)
+  rtl/relacy/tsan_threads_box.cc
+  rtl/relacy/tsan_thread_context.cc)
 
 set(TSAN_CXX_SOURCES
   rtl/tsan_new_delete.cc)
@@ -69,7 +70,7 @@ elseif(UNIX)
   list(APPEND TSAN_SOURCES
     rtl/tsan_platform_linux.cc
     rtl/tsan_platform_posix.cc
-    rtl/relacy/tsan_fiber.cc)
+    rtl/relacy/tsan_scheduler_engine.cc)
 endif()
 
 set(TSAN_HEADERS
@@ -98,9 +99,13 @@ set(TSAN_HEADERS
   rtl/tsan_sync.h
   rtl/tsan_trace.h
   rtl/tsan_update_shadow_word_inl.h
-  rtl/relacy/tsan_fiber.h
   rtl/relacy/tsan_generator_paths.h
-  rtl/relacy/tsan_threads_box.h)
+  rtl/relacy/tsan_threads_box.h
+  rtl/relacy/tsan_thread_context.h
+  rtl/relacy/tsan_type_traits.h
+  rtl/relacy/tsan_scheduler_engine.h
+  rtl/relacy/tsan_platform.h
+  rtl/relacy/tsan_scheduler.h)
 
 set(TSAN_RUNTIME_LIBRARIES)
 add_compiler_rt_component(tsan)

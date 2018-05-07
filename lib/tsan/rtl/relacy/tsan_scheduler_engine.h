@@ -8,6 +8,8 @@
 #include "sanitizer_common/sanitizer_vector.h"
 #include "tsan_generator_paths.h"
 #include "tsan_threads_box.h"
+#include "tsan_scheduler.h"
+#include "tsan_platform.h"
 
 #define FIBER_STACK_SIZE 16384
 extern THREADLOCAL char cur_thread_placeholder[];
@@ -37,14 +39,9 @@ class FiberContext : public ThreadContext {
    FiberContext *parent_;
 };
 
-struct JoinFiberContext {
-  int waiting_tid;
-  FiberContext *thread_info;
-};
-
-class FiberManager {
+class SchedulerEngine {
   public:
-   FiberManager();
+   SchedulerEngine();
 
    FiberContext *CreateFiber(void *th, void *attr, void (*callback)(), void *param);
 
@@ -72,12 +69,18 @@ class FiberManager {
 
    void InitializeTLS();
 
+   SchedulerType GetSchedulerType();
+
+   PlatformType GetPlatformType();
+
   private:
    static void *CreateSharedMemory(uptr size);
 
   private:
    GeneratorPaths *paths_;
    ThreadsBox threads_box_;
+   Scheduler *scheduler_;
+   Platform *platform_;
   public:
    uptr tls_addr_;
    char *tls_base_;
@@ -86,7 +89,7 @@ class FiberManager {
 
 }
 #if SANITIZER_RELACY_SCHEDULER
-extern __relacy::FiberManager _fiber_manager;
+extern __relacy::SchedulerEngine _fiber_manager;
 #endif
 
 }

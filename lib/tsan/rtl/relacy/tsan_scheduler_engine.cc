@@ -2,7 +2,7 @@
 #include <cstring>
 #include <cstdlib>
 #include <ctime>
-#include <rtl/relacy/tsan_fiber.h>
+#include <rtl/relacy/tsan_scheduler_engine.h>
 #include <sys/types.h>
 #include <unistd.h>
 #include <sys/wait.h>
@@ -55,7 +55,31 @@ void set_tls_addr(unsigned long addr) {
 }
 
 
-FiberManager::FiberManager() {
+SchedulerEngine::SchedulerEngine() {
+
+  if (!strcmp(flags()->scheduler_type, "")) {
+    scheduler_ = nullptr;
+  } else {
+    Printf("FATAL: ThreadSanitizer invalid scheduler type. Please check TSAN_OPTIONS!\n");
+    Die();
+  }
+
+  if (!strcmp(flags()->scheduler_platform, "")) {
+    platform_ = nullptr;
+  } else {
+    Printf("FATAL: ThreadSanitizer invalid platform type. Please check TSAN_OPTIONS!\n");
+    Die();
+  }
+
+  if (scheduler_ == nullptr || platform_ == nullptr) {
+    if (scheduler_ != nullptr || platform_ != nullptr) {
+      Printf("FATAL: ThreadSanitizer platform + scheduler invalid combination\n");
+      Die();
+    }
+
+    return;
+  }
+
   uptr stk_addr = 0;
   uptr stk_size = 0;
   InitTlsSize();
@@ -81,9 +105,13 @@ FiberManager::FiberManager() {
   Start();
 }
 
-FiberContext *FiberManager::CreateFiber(void *th, void *attr, void (*callback)(), void *param) {
+FiberContext *SchedulerEngine::CreateFiber(void *th, void *attr, void (*callback)(), void *param) {
   (void) th;
   (void) attr;
+
+  if (GetPlatformType() == PlatformType::OS) {
+    return nullptr;
+  }
 
   FiberContext *fiber_context = static_cast<FiberContext *>(InternalCalloc(1, sizeof(FiberContext)));
   new(fiber_context) FiberContext{static_cast<struct ucontext_t *>(InternalCalloc(1, sizeof(ucontext_t)))};
@@ -104,7 +132,10 @@ FiberContext *FiberManager::CreateFiber(void *th, void *attr, void (*callback)()
   return fiber_context;
 }
 
-void FiberManager::Yield(FiberContext *context) {
+void SchedulerEngine::Yield(FiberContext *context) {
+  if (GetPlatformType() == PlatformType::OS) {
+    return;
+  }
   //current_thread_->ApplyChanges(tls_addr_);
   FiberContext *old_thread = static_cast<FiberContext*>(threads_box_.GetCurrentThread());
   threads_box_.SetCurrentThread(context);
@@ -124,30 +155,37 @@ void FiberManager::Yield(FiberContext *context) {
   }
 }
 
-void FiberManager::AddFiberContext(int tid, FiberContext *context) {
+void SchedulerEngine::AddFiberContext(int tid, FiberContext *context) {
+  if (GetPlatformType() == PlatformType::OS) {
+    return;
+  }
   context->SetTid(tid);
   threads_box_.AddRunning(context);
 }
 
-void FiberManager::YieldByTid(int tid) {
+void SchedulerEngine::YieldByTid(int tid) {
   Yield(static_cast<FiberContext*>(threads_box_.GetRunningByTid(tid)));
 }
 
-void FiberManager::YieldByIndex(uptr index) {
+void SchedulerEngine::YieldByIndex(uptr index) {
   Yield(static_cast<FiberContext*>(threads_box_.GetRunningByIndex(index)));
 }
 
-int FiberManager::MaxRunningTid() {
+int SchedulerEngine::MaxRunningTid() {
   return threads_box_.MaxRunningTid();
 }
 
-bool FiberManager::IsRunningTid(int tid) {
+bool SchedulerEngine::IsRunningTid(int tid) {
   return threads_box_.ContainsRunningByTid(tid);
 }
 
 RandomGenerator *generator_;
 
-void FiberManager::Yield() {
+void SchedulerEngine::Yield() {
+  if (GetPlatformType() == PlatformType::OS) {
+    return;
+  }
+
   if (threads_box_.GetCountRunning() == 0) {
     Printf("FATAL: ThreadSanitizer yield count threads == 0\n");
     Die();
@@ -166,11 +204,15 @@ void FiberManager::Yield() {
 }
 
 
-FiberContext *FiberManager::GetParent() {
-  return static_cast<FiberContext*>(threads_box_.GetCurrentThread())->GetParent();
+FiberContext *SchedulerEngine::GetParent() {
+  return GetPlatformType() == PlatformType::OS ? nullptr : static_cast<FiberContext*>(threads_box_.GetCurrentThread())->GetParent();
 }
 
-void FiberManager::Join(int wait_tid) {
+void SchedulerEngine::Join(int wait_tid) {
+  if (GetPlatformType() == PlatformType::OS) {
+    return;
+  }
+
   if (threads_box_.ContainsStoppedByTid(wait_tid)) {
     return;
   }
@@ -207,13 +249,16 @@ void FiberManager::Join(int wait_tid) {
   threads_box_.AddJoining(JoinContext { context, wait_context });
 }
 
-void FiberManager::StopThread() {
+void SchedulerEngine::StopThread() {
+  if (GetPlatformType() == PlatformType::OS) {
+    return;
+  }
   threads_box_.AddStopped(threads_box_.ExtractRunningByTid(threads_box_.GetCurrentThread()->GetTid()));
   threads_box_.WakeupJoiningByWaitTid(threads_box_.GetCurrentThread()->GetTid());
 }
 
 
-void FiberManager::Start() {
+void SchedulerEngine::Start() {
   if (paths_ == nullptr) {
     paths_ = new GeneratorPaths(static_cast<unsigned long *>(CreateSharedMemory(1024 * sizeof(unsigned long))),
                                 static_cast<unsigned long *>(CreateSharedMemory(1024 * sizeof(unsigned long))), 1024);
@@ -248,7 +293,7 @@ void FiberManager::Start() {
   }
 }
 
-void *FiberManager::CreateSharedMemory(uptr size) {
+void *SchedulerEngine::CreateSharedMemory(uptr size) {
   // Our memory buffer will be readable and writable:
   int protection = PROT_READ | PROT_WRITE;
 
@@ -262,15 +307,26 @@ void *FiberManager::CreateSharedMemory(uptr size) {
   return mmap(NULL, size, protection, visibility, 0, 0);
 }
 
-void FiberManager::InitializeTLS() {
+void SchedulerEngine::InitializeTLS() {
+  if (GetPlatformType() == PlatformType::OS) {
+    return;
+  }
   uptr descr_addr = (uptr) static_cast<FiberContext*>(threads_box_.GetCurrentThread())->GetTls() + tls_size_;
   set_tls_addr(descr_addr);
+}
+
+SchedulerType SchedulerEngine::GetSchedulerType() {
+  return scheduler_ ? scheduler_->GetType() : SchedulerType::OS;
+}
+
+PlatformType SchedulerEngine::GetPlatformType() {
+  return platform_ ? platform_->GetType() : PlatformType::OS;
 }
 
 }
 
 #if SANITIZER_RELACY_SCHEDULER
-__relacy::FiberManager _fiber_manager;
+__relacy::SchedulerEngine _fiber_manager;
 #endif
 
 }

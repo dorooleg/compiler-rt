@@ -25,7 +25,7 @@
 #include "tsan_flags.h"
 #include "tsan_interface.h"
 #include "tsan_rtl.h"
-#include "relacy/tsan_fiber.h"
+#include "rtl/relacy/tsan_scheduler_engine.h"
 
 using namespace __tsan;  // NOLINT
 
