@@ -14,6 +14,14 @@ void ThreadContext::SetTid(int tid) {
   tid_ = tid;
 }
 
+ThreadContext* ThreadContext::GetParent() {
+  return parent_;
+}
+
+void ThreadContext::SetParent(ThreadContext *parent) {
+  parent_ = parent;
+}
+
 JoinContext::JoinContext(ThreadContext *current_thread, ThreadContext *wait_thread)
     : wait_thread_(wait_thread), current_thread_(current_thread) {}
 

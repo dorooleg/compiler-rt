@@ -12,8 +12,13 @@ class ThreadContext {
 
    void SetTid(int tid);
 
+   ThreadContext* GetParent();
+
+   void SetParent(ThreadContext *parent);
+
   private:
    int tid_;
+   ThreadContext* parent_;
 };
 
 class JoinContext {

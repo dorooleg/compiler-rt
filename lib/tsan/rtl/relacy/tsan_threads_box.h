@@ -43,7 +43,7 @@ class ThreadsBox {
    template<typename T>
    typename enable_if<!is_pointer<T>::value, int>::type MaxTid(const Vector<T> &threads) const {
      int m = 0;
-     for (int i = 0; i < threads.Size(); i++) {
+     for (uptr i = 0; i < threads.Size(); i++) {
        m = max(threads[i].GetTid(), m);
      }
      return m;
@@ -52,7 +52,7 @@ class ThreadsBox {
    template<typename T>
    typename enable_if<is_pointer<T>::value, int>::type MaxTid(const Vector<T> &threads) const {
      int m = 0;
-     for (int i = 0; i < threads.Size(); i++) {
+     for (uptr i = 0; i < threads.Size(); i++) {
        m = max(threads[i]->GetTid(), m);
      }
      return m;

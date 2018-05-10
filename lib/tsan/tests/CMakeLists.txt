@@ -24,7 +24,7 @@ if(APPLE)
     $<TARGET_OBJECTS:RTSanitizerCommonLibc.osx>
     $<TARGET_OBJECTS:RTSanitizerCommonCoverage.osx>
     $<TARGET_OBJECTS:RTSanitizerCommonSymbolizer.osx>
-    $<TARGET_OBJECTS:RTUbsan.osx>)
+    $<TARGET_OBJECTS:RTUbsan.osx> ../rtl/relacy/schedulers/tsan_all_states_scheduler.cc ../rtl/relacy/schedulers/tsan_fixed_window_scheduler.cc ../rtl/relacy/schedulers/tsan_full_path_scheduler.cc ../rtl/relacy/schedulers/tsan_parallel_full_path_scheduler.cc ../rtl/relacy/schedulers/tsan_random_scheduler.cc ../rtl/relacy/schedulers/tsan_random_with_different_distributions_scheduler.cc ../rtl/relacy/platforms/tsan_fiber_tls_copy_platform.cc ../rtl/relacy/platforms/tsan_fiber_tls_swap_platform.cc ../rtl/relacy/platforms/tsan_pthread_platform.cc)
   set(TSAN_TEST_RUNTIME RTTsanTest)
   add_library(${TSAN_TEST_RUNTIME} STATIC ${TSAN_TEST_RUNTIME_OBJECTS})
   set_target_properties(${TSAN_TEST_RUNTIME} PROPERTIES

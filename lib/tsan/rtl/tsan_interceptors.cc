@@ -932,7 +932,7 @@ struct ThreadParam {
 
 extern "C" void *__tsan_thread_start_func(void *arg) {
 #if SANITIZER_RELACY_SCHEDULER
-  _fiber_manager.InitializeTLS();
+  _fiber_manager.Initialize();
 {
 #endif
   ThreadParam *p = (ThreadParam*)arg;
@@ -965,7 +965,7 @@ extern "C" void *__tsan_thread_start_func(void *arg) {
   void *res = callback(param);
   // Prevent the callback from being tail called,
   // it mixes up stack traces.
-#if !SANITIZER_RELACY_SCHEDULER
+#ifndef SANITIZER_RELACY_SCHEDULER
   volatile int foo = 42;
   foo++;
   return res;
@@ -986,12 +986,6 @@ extern "C" void *__tsan_thread_start_func(void *arg) {
   return nullptr;
 #endif
 }
-
-#if SANITIZER_RELACY_SCHEDULER
-static void *empty_call(void *arg) {
-  return nullptr;
-}
-#endif
 
 TSAN_INTERCEPTOR(int, pthread_create,
     void *th, void *attr, void *(*callback)(void*), void * param) {
@@ -1024,7 +1018,7 @@ TSAN_INTERCEPTOR(int, pthread_create,
   p.param = param;
   atomic_store(&p.tid, 0, memory_order_relaxed);
 #if SANITIZER_RELACY_SCHEDULER
-  __relacy::FiberContext* fiber_context = nullptr;
+  __relacy::ThreadContext* fiber_context = nullptr;
 #endif
   int res = -1;
   {
@@ -1037,7 +1031,7 @@ TSAN_INTERCEPTOR(int, pthread_create,
           .CreateFiber(th, attr,
                        reinterpret_cast<void(*)()>(__tsan_thread_start_func),
                        &p);
-      res = REAL(pthread_create)(th, attr, empty_call, &p);
+      res = 0;
     } else {
       res = REAL(pthread_create)(th, attr, __tsan_thread_start_func, &p);
     }
@@ -1085,7 +1079,7 @@ TSAN_INTERCEPTOR(int, pthread_join, void *th, void **ret) {
   ThreadIgnoreBegin(thr, pc);
 #if SANITIZER_RELACY_SCHEDULER
   int res = 0;
-  if (_fiber_manager.GetPlatformType() == __relacy::PlatformType::OS) {
+  if (_fiber_manager.GetPlatformType() != __relacy::PlatformType::OS) {
     _fiber_manager.Join(tid);
     _fiber_manager.Yield();
   } else {

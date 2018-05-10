@@ -13,52 +13,43 @@
 #include <asm/ldt.h>
 #include <sys/syscall.h>
 
+//schedulers
+#include "rtl/relacy/schedulers/tsan_all_states_scheduler.h"
+#include "rtl/relacy/schedulers/tsan_fixed_window_scheduler.h"
+#include "rtl/relacy/schedulers/tsan_full_path_scheduler.h"
+#include "rtl/relacy/schedulers/tsan_parallel_full_path_scheduler.h"
+#include "rtl/relacy/schedulers/tsan_random_scheduler.h"
+#include "rtl/relacy/schedulers/tsan_random_with_different_distributions_scheduler.h"
+
+//platforms
+#include "rtl/relacy/platforms/tsan_fiber_tls_swap_platfrom.h"
+#include "rtl/relacy/platforms/tsan_fiber_tls_copy_platform.h"
+#include "rtl/relacy/platforms/tsan_pthread_platform.h"
+
 namespace __tsan {
 namespace __relacy {
 
-FiberContext::FiberContext(void *fiber_context, char *tls, FiberContext *parent, int tid)
-    : ThreadContext(tid), ctx_(fiber_context), tls_(tls), parent_(parent) {
-}
-
-void *FiberContext::GetFiberContext() {
-  return ctx_;
-}
-
-void FiberContext::SetFiberContext(void *fiber_context) {
-  ctx_ = fiber_context;
-}
-
-char *FiberContext::GetTls() {
-  return tls_;
-}
-
-void FiberContext::SetTls(char *tls) {
-  tls_ = tls;
-}
-
-FiberContext *FiberContext::GetParent() {
-  return parent_;
-}
-
-void FiberContext::SetParent(FiberContext *parent) {
-  parent_ = parent;
-}
-
-unsigned long get_tls_addr() {
-  unsigned long addr;
-  asm("mov %%fs:0, %0" : "=r"(addr));
-  return addr;
-}
-
-void set_tls_addr(unsigned long addr) {
-  asm("mov %0, %%fs:0" : "+r"(addr));
-}
-
-
 SchedulerEngine::SchedulerEngine() {
-
   if (!strcmp(flags()->scheduler_type, "")) {
     scheduler_ = nullptr;
+  } else if (!strcmp(flags()->scheduler_type, "random")) {
+    scheduler_ = static_cast<RandomScheduler *>(InternalCalloc(1, sizeof(RandomScheduler)));
+    new (scheduler_) RandomScheduler{threads_box_};
+  } else if (!strcmp(flags()->scheduler_type, "all_states")) {
+    scheduler_ = static_cast<AllStatesScheduler *>(InternalCalloc(1, sizeof(AllStatesScheduler)));
+    new (scheduler_) AllStatesScheduler{};
+  } else if (!strcmp(flags()->scheduler_type, "full_path")) {
+    scheduler_ = static_cast<FullPathScheduler *>(InternalCalloc(1, sizeof(FullPathScheduler)));
+    new (scheduler_) FullPathScheduler{};
+  } else if (!strcmp(flags()->scheduler_type, "parallel_full_path")) {
+    scheduler_ = static_cast<ParallelFullPathScheduler *>(InternalCalloc(1, sizeof(ParallelFullPathScheduler)));
+    new (scheduler_) ParallelFullPathScheduler{};
+  } else if (!strcmp(flags()->scheduler_type, "random_with_different_distributions")) {
+    scheduler_ = static_cast<RandomWithDifferentDistributionsScheduler *>(InternalCalloc(1, sizeof(RandomWithDifferentDistributionsScheduler)));
+    new (scheduler_) RandomWithDifferentDistributionsScheduler{};
+  } else if (!strcmp(flags()->scheduler_type, "fixed_window")) {
+    scheduler_ = static_cast<FixedWindowScheduler *>(InternalCalloc(1, sizeof(FixedWindowScheduler)));
+    new (scheduler_) FixedWindowScheduler{};
   } else {
     Printf("FATAL: ThreadSanitizer invalid scheduler type. Please check TSAN_OPTIONS!\n");
     Die();
@@ -66,6 +57,15 @@ SchedulerEngine::SchedulerEngine() {
 
   if (!strcmp(flags()->scheduler_platform, "")) {
     platform_ = nullptr;
+  } else if (!strcmp(flags()->scheduler_platform, "fiber_tls_swap")) {
+    platform_ = static_cast<FiberTlsSwapPlatform *>(InternalCalloc(1, sizeof(FiberTlsSwapPlatform)));
+    new (platform_) FiberTlsSwapPlatform{threads_box_};
+  } else if (!strcmp(flags()->scheduler_platform, "fiber_tls_copy")) {
+    platform_ = static_cast<FiberTlsCopyPlatform *>(InternalCalloc(1, sizeof(FiberTlsCopyPlatform)));
+    new (platform_) FiberTlsCopyPlatform{};
+  } else if (!strcmp(flags()->scheduler_platform, "pthread")) {
+    platform_ = static_cast<PthreadPlatform *>(InternalCalloc(1, sizeof(PthreadPlatform)));
+    new (platform_) PthreadPlatform{};
   } else {
     Printf("FATAL: ThreadSanitizer invalid platform type. Please check TSAN_OPTIONS!\n");
     Die();
@@ -80,82 +80,24 @@ SchedulerEngine::SchedulerEngine() {
     return;
   }
 
-  uptr stk_addr = 0;
-  uptr stk_size = 0;
-  InitTlsSize();
-  GetThreadStackAndTls(true, &stk_addr, &stk_size, &tls_addr_, &tls_size_);
-  tls_addr_ = get_tls_addr();
-
-  FiberContext *current_thread = static_cast<FiberContext *>(InternalCalloc(1, sizeof(FiberContext)));
-  new(current_thread) FiberContext{InternalCalloc(1, sizeof(ucontext_t)),
-                                   reinterpret_cast<char *>(tls_addr_) - tls_size_, current_thread, 0};
-  ucontext_t &context = *static_cast<ucontext_t *>(current_thread->GetFiberContext());
-  context.uc_stack.ss_flags = 0;
-  context.uc_link = nullptr;
-
-  tls_base_ = static_cast<char *>(InternalCalloc(tls_size_, 1));
-
-  internal_memcpy(tls_base_, reinterpret_cast<const char *>(tls_addr_) - tls_size_, tls_size_);
-  uptr offset = (uptr) cur_thread() - (tls_addr_ - tls_size_);
-  internal_memset(tls_base_ + offset, 0, sizeof(ThreadState));
-
-  threads_box_.AddRunning(current_thread);
-  threads_box_.SetCurrentThread(current_thread);
+  Printf("Platform %s Type %s\n", flags()->scheduler_platform, flags()->scheduler_type);
 
   Start();
 }
 
-FiberContext *SchedulerEngine::CreateFiber(void *th, void *attr, void (*callback)(), void *param) {
-  (void) th;
-  (void) attr;
-
-  if (GetPlatformType() == PlatformType::OS) {
-    return nullptr;
-  }
-
-  FiberContext *fiber_context = static_cast<FiberContext *>(InternalCalloc(1, sizeof(FiberContext)));
-  new(fiber_context) FiberContext{static_cast<struct ucontext_t *>(InternalCalloc(1, sizeof(ucontext_t)))};
-  if (getcontext(static_cast<ucontext_t *>(fiber_context->GetFiberContext())) == -1) {
-    Printf("FATAL: ThreadSanitizer getcontext error in the moment creating fiber\n");
-    Die();
-  }
-
-  ucontext_t &context = *static_cast<ucontext_t *>(fiber_context->GetFiberContext());
-  context.uc_stack.ss_sp = InternalCalloc(FIBER_STACK_SIZE, sizeof(char));
-  context.uc_stack.ss_size = FIBER_STACK_SIZE;
-  context.uc_stack.ss_flags = 0;
-  context.uc_link = static_cast<struct ucontext_t *>(static_cast<FiberContext*>(threads_box_.GetCurrentThread())->GetFiberContext());
-  fiber_context->SetParent(static_cast<FiberContext*>(threads_box_.GetCurrentThread()));
-  fiber_context->SetTls(static_cast<char *>(InternalCalloc(tls_size_, 1)));
-  internal_memcpy(fiber_context->GetTls(), tls_base_, tls_size_);
-  makecontext(static_cast<ucontext_t *>(fiber_context->GetFiberContext()), callback, 1, param);
-  return fiber_context;
+ThreadContext *SchedulerEngine::CreateFiber(void *th, void *attr, void (*callback)(), void *param) {
+  return GetPlatformType() == PlatformType::OS ? nullptr : platform_->Create(th, attr, callback, param);
 }
 
-void SchedulerEngine::Yield(FiberContext *context) {
+void SchedulerEngine::Yield(ThreadContext *context) {
   if (GetPlatformType() == PlatformType::OS) {
     return;
   }
-  //current_thread_->ApplyChanges(tls_addr_);
-  FiberContext *old_thread = static_cast<FiberContext*>(threads_box_.GetCurrentThread());
-  threads_box_.SetCurrentThread(context);
 
-
-  //uptr offset = (uptr)cur_thread() - tls_addr_;
-  //internal_memcpy(old_thread->tls + offset, reinterpret_cast<const void *>(tls_addr_ + offset), sizeof(ThreadState));
-  //internal_memcpy(reinterpret_cast<char *>(tls_addr_  + offset), current_thread_->tls + offset, sizeof(ThreadState));
-  int res = swapcontext(static_cast<struct ucontext_t *>(old_thread->GetFiberContext()),
-                        static_cast<const struct ucontext_t *>(static_cast<FiberContext*>(threads_box_.GetCurrentThread())->GetFiberContext()));
-
-  InitializeTLS();
-
-  if (res != 0) {
-    Printf("FATAL: ThreadSanitizer swapcontext error in the moment yield fiber\n");
-    Die();
-  }
+  platform_->Yield(context);
 }
 
-void SchedulerEngine::AddFiberContext(int tid, FiberContext *context) {
+void SchedulerEngine::AddFiberContext(int tid, ThreadContext *context) {
   if (GetPlatformType() == PlatformType::OS) {
     return;
   }
@@ -163,49 +105,8 @@ void SchedulerEngine::AddFiberContext(int tid, FiberContext *context) {
   threads_box_.AddRunning(context);
 }
 
-void SchedulerEngine::YieldByTid(int tid) {
-  Yield(static_cast<FiberContext*>(threads_box_.GetRunningByTid(tid)));
-}
-
-void SchedulerEngine::YieldByIndex(uptr index) {
-  Yield(static_cast<FiberContext*>(threads_box_.GetRunningByIndex(index)));
-}
-
-int SchedulerEngine::MaxRunningTid() {
-  return threads_box_.MaxRunningTid();
-}
-
-bool SchedulerEngine::IsRunningTid(int tid) {
-  return threads_box_.ContainsRunningByTid(tid);
-}
-
-RandomGenerator *generator_;
-
 void SchedulerEngine::Yield() {
-  if (GetPlatformType() == PlatformType::OS) {
-    return;
-  }
-
-  if (threads_box_.GetCountRunning() == 0) {
-    Printf("FATAL: ThreadSanitizer yield count threads == 0\n");
-    Die();
-  }
-
-  /*int tid = static_cast<int>(paths_->Yield(static_cast<unsigned long>(MaxRunningTid())));
-
-  if (!IsRunningTid(tid)) {
-    paths_->InvalidateThread();
-    YieldByIndex(rand() % running_.Size());
-    return;
-  }
-
-  YieldByTid(tid);*/
-  YieldByIndex(static_cast<uptr>(generator_->Rand(static_cast<int>(threads_box_.GetCountRunning()))));
-}
-
-
-FiberContext *SchedulerEngine::GetParent() {
-  return GetPlatformType() == PlatformType::OS ? nullptr : static_cast<FiberContext*>(threads_box_.GetCurrentThread())->GetParent();
+  Yield(scheduler_->Yield());
 }
 
 void SchedulerEngine::Join(int wait_tid) {
@@ -222,7 +123,7 @@ void SchedulerEngine::Join(int wait_tid) {
     Die();
   }
 
-  ThreadContext *context = threads_box_.ExtractRunningByTid(static_cast<FiberContext*>(threads_box_.GetCurrentThread())->GetTid());
+  ThreadContext *context = threads_box_.ExtractRunningByTid(threads_box_.GetCurrentThread()->GetTid());
 
   if (context == nullptr) {
     Printf("FATAL: ThreadSanitizer is not existing thread\n");
@@ -246,6 +147,7 @@ void SchedulerEngine::Join(int wait_tid) {
   if (wait_context == nullptr) {
     wait_context = threads_box_.GetJoiningByTid(wait_tid).GetCurrentThread();
   }
+
   threads_box_.AddJoining(JoinContext { context, wait_context });
 }
 
@@ -253,29 +155,25 @@ void SchedulerEngine::StopThread() {
   if (GetPlatformType() == PlatformType::OS) {
     return;
   }
+
   threads_box_.AddStopped(threads_box_.ExtractRunningByTid(threads_box_.GetCurrentThread()->GetTid()));
   threads_box_.WakeupJoiningByWaitTid(threads_box_.GetCurrentThread()->GetTid());
 }
 
 
 void SchedulerEngine::Start() {
-  if (paths_ == nullptr) {
-    paths_ = new GeneratorPaths(static_cast<unsigned long *>(CreateSharedMemory(1024 * sizeof(unsigned long))),
-                                static_cast<unsigned long *>(CreateSharedMemory(1024 * sizeof(unsigned long))), 1024);
-  }
-  if (generator_ == nullptr) {
-    generator_ = new RandomGenerator();
-  }
-  while (true) {
-    //paths_->Start();
-    //uptr offset = (uptr)&cur_thread_placeholder - tls_addr_;
-    //internal_memcpy(reinterpret_cast<char *>(tls_addr_  + offset), current_thread_->tls + offset, sizeof(ThreadState));
+ if (GetPlatformType() == PlatformType::OS) {
+   return;
+ }
+ scheduler_->Initialize();
+ while (true) {
     pid_t pid = fork();
     if (pid < 0) {
       Printf("FATAL: ThreadSanitizer fork error\n");
       Die();
     }
     if (pid != 0) {
+      scheduler_->Start();
       int status;
       if (waitpid(pid, &status, WUNTRACED | WCONTINUED) == -1) {
         Printf("FATAL: ThreadSanitizer waitpid error\n");
@@ -285,34 +183,15 @@ void SchedulerEngine::Start() {
         Printf("FATAL: ThreadSanitizer invalid status code\n");
         Die();
       }
-      //paths_->Finish();
-      generator_->NextGenerator();
+      scheduler_->Finish();
     } else {
       break;
     }
   }
 }
 
-void *SchedulerEngine::CreateSharedMemory(uptr size) {
-  // Our memory buffer will be readable and writable:
-  int protection = PROT_READ | PROT_WRITE;
-
-  // The buffer will be shared (meaning other processes can access it), but
-  // anonymous (meaning third-party processes cannot obtain an address for it),
-  // so only this process and its children will be able to use it:
-  int visibility = MAP_ANONYMOUS | MAP_SHARED;
-
-  // The remaining parameters to `mmap()` are not important for this use case,
-  // but the manpage for `mmap` explains their purpose.
-  return mmap(NULL, size, protection, visibility, 0, 0);
-}
-
-void SchedulerEngine::InitializeTLS() {
-  if (GetPlatformType() == PlatformType::OS) {
-    return;
-  }
-  uptr descr_addr = (uptr) static_cast<FiberContext*>(threads_box_.GetCurrentThread())->GetTls() + tls_size_;
-  set_tls_addr(descr_addr);
+ThreadContext* SchedulerEngine::GetParent() {
+  return GetSchedulerType() == SchedulerType::OS ? nullptr : threads_box_.GetCurrentThread()->GetParent();
 }
 
 SchedulerType SchedulerEngine::GetSchedulerType() {
@@ -321,6 +200,14 @@ SchedulerType SchedulerEngine::GetSchedulerType() {
 
 PlatformType SchedulerEngine::GetPlatformType() {
   return platform_ ? platform_->GetType() : PlatformType::OS;
+}
+
+void SchedulerEngine::Initialize() {
+  if (GetPlatformType() == PlatformType::OS) {
+    return;
+  }
+
+  platform_->Initialize();
 }
 
 }

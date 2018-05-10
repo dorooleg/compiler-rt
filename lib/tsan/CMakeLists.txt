@@ -70,7 +70,16 @@ elseif(UNIX)
   list(APPEND TSAN_SOURCES
     rtl/tsan_platform_linux.cc
     rtl/tsan_platform_posix.cc
-    rtl/relacy/tsan_scheduler_engine.cc)
+    rtl/relacy/tsan_scheduler_engine.cc
+    rtl/relacy/schedulers/tsan_all_states_scheduler.cc
+    rtl/relacy/schedulers/tsan_fixed_window_scheduler.cc
+    rtl/relacy/schedulers/tsan_full_path_scheduler.cc
+    rtl/relacy/schedulers/tsan_parallel_full_path_scheduler.cc
+    rtl/relacy/schedulers/tsan_random_scheduler.cc
+    rtl/relacy/schedulers/tsan_random_with_different_distributions_scheduler.cc
+    rtl/relacy/platforms/tsan_fiber_tls_copy_platform.cc
+    rtl/relacy/platforms/tsan_fiber_tls_swap_platform.cc
+    rtl/relacy/platforms/tsan_pthread_platform.cc)
 endif()
 
 set(TSAN_HEADERS
@@ -105,7 +114,16 @@ set(TSAN_HEADERS
   rtl/relacy/tsan_type_traits.h
   rtl/relacy/tsan_scheduler_engine.h
   rtl/relacy/tsan_platform.h
-  rtl/relacy/tsan_scheduler.h)
+  rtl/relacy/tsan_scheduler.h
+  rtl/relacy/schedulers/tsan_all_states_scheduler.h
+  rtl/relacy/schedulers/tsan_fixed_window_scheduler.h
+  rtl/relacy/schedulers/tsan_full_path_scheduler.h
+  rtl/relacy/schedulers/tsan_parallel_full_path_scheduler.h
+  rtl/relacy/schedulers/tsan_random_scheduler.h
+  rtl/relacy/schedulers/tsan_random_with_different_distributions_scheduler.h
+  rtl/relacy/platforms/tsan_fiber_tls_copy_platform.h
+  rtl/relacy/platforms/tsan_fiber_tls_swap_platform.h
+  rtl/relacy/platforms/tsan_pthread_platform.h)
 
 set(TSAN_RUNTIME_LIBRARIES)
 add_compiler_rt_component(tsan)

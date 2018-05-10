@@ -2,13 +2,14 @@
 #define TSAN_SCHEDULER_H
 
 #include "schedulers/tsan_scheduler_type.h"
+#include "tsan_thread_context.h"
 
 namespace __tsan {
 namespace __relacy {
 
 class Scheduler {
   public:
-   virtual void Yield() = 0;
+   virtual ThreadContext* Yield() = 0;
 
    virtual void Start() = 0;
 

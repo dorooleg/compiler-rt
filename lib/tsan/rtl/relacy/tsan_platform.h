@@ -9,7 +9,9 @@ namespace __relacy {
 
 class Platform {
   public:
-   virtual ThreadContext* CreateFiber(void *th, void *attr, void (*callback)(), void *param) = 0;
+   virtual ThreadContext* Create(void *th, void *attr, void (*callback)(), void *param) = 0;
+
+   virtual void Initialize() = 0;
 
    virtual PlatformType GetType() = 0;
 
