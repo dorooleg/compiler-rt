@@ -62,7 +62,7 @@ SchedulerEngine::SchedulerEngine() {
     new (platform_) FiberTlsSwapPlatform{threads_box_};
   } else if (!strcmp(flags()->scheduler_platform, "fiber_tls_copy")) {
     platform_ = static_cast<FiberTlsCopyPlatform *>(InternalCalloc(1, sizeof(FiberTlsCopyPlatform)));
-    new (platform_) FiberTlsCopyPlatform{};
+    new (platform_) FiberTlsCopyPlatform{threads_box_};
   } else if (!strcmp(flags()->scheduler_platform, "pthread")) {
     platform_ = static_cast<PthreadPlatform *>(InternalCalloc(1, sizeof(PthreadPlatform)));
     new (platform_) PthreadPlatform{};

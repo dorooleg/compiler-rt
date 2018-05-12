@@ -10,7 +10,7 @@ class PthreadPlatform : public Platform {
   public:
    ThreadContext* Create(void *th, void *attr, void (*callback)(), void *param) override;
 
-   virtual void Initialize() override;
+   void Initialize() override;
 
    PlatformType GetType() override;
 

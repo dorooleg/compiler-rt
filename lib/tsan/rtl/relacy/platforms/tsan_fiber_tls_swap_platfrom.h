@@ -9,11 +9,11 @@ namespace __relacy {
 
 class FiberTlsSwapPlatform : public Platform {
   public:
-   FiberTlsSwapPlatform(ThreadsBox& threads_box);
+   explicit FiberTlsSwapPlatform(ThreadsBox& threads_box);
 
    ThreadContext* Create(void *th, void *attr, void (*callback)(), void *param) override;
 
-   virtual void Initialize() override;
+   void Initialize() override;
 
    PlatformType GetType() override;
 
