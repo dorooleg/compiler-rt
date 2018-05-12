@@ -16,6 +16,11 @@ void AllStatesScheduler::Finish() {
 
 }
 
+bool AllStatesScheduler::IsEnd() {
+    return false;
+}
+
+
 void AllStatesScheduler::Initialize() {
 
 }

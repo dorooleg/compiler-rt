@@ -4,7 +4,9 @@ namespace __tsan {
 namespace __relacy {
 
 ThreadContext::ThreadContext(int tid)
-    : tid_(tid) {}
+    : tid_(tid)
+    , parent_(nullptr)
+{}
 
 int ThreadContext::GetTid() const {
   return tid_;

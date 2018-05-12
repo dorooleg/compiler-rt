@@ -16,6 +16,10 @@ void ParallelFullPathScheduler::Finish() {
 
 }
 
+bool ParallelFullPathScheduler::IsEnd() {
+    return false;
+}
+
 void ParallelFullPathScheduler::Initialize() {
 
 }

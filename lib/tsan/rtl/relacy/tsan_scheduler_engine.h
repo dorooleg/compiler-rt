@@ -6,7 +6,7 @@
  */
 
 #include "sanitizer_common/sanitizer_vector.h"
-#include "tsan_generator_paths.h"
+#include "rtl/relacy/schedulers/tsan_generator_paths.h"
 #include "tsan_threads_box.h"
 #include "tsan_scheduler.h"
 #include "tsan_platform.h"

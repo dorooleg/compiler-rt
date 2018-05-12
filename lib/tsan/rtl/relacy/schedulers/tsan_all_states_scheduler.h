@@ -14,6 +14,8 @@ class AllStatesScheduler : public Scheduler {
 
    void Finish() override;
 
+   bool IsEnd() override;
+
    void Initialize() override;
 
    SchedulerType GetType() override;

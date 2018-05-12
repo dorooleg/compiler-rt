@@ -5,8 +5,8 @@
 namespace __tsan {
 namespace __relacy {
 
-RandomScheduler::RandomScheduler(ThreadsBox& thread_box)
-        : threads_box_(thread_box)
+RandomScheduler::RandomScheduler(ThreadsBox& threads_box)
+        : threads_box_(threads_box)
         , iteration_(0) {
 
 }
@@ -26,6 +26,10 @@ void RandomScheduler::Start() {
 
 void RandomScheduler::Finish() {
     iteration_++;
+}
+
+bool RandomScheduler::IsEnd() {
+    return false;
 }
 
 void RandomScheduler::Initialize() {

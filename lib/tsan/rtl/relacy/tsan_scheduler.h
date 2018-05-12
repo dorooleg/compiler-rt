@@ -17,6 +17,8 @@ class Scheduler {
 
    virtual void Initialize() = 0;
 
+   virtual bool IsEnd() = 0;
+
    virtual SchedulerType GetType() = 0;
 
    virtual ~Scheduler() = default;

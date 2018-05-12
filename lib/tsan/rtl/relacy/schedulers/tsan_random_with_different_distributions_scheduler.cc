@@ -4,8 +4,18 @@
 namespace __tsan {
 namespace __relacy {
 
+RandomWithDifferentDistributionsScheduler::RandomWithDifferentDistributionsScheduler(ThreadsBox& thread_box)
+        : threads_box_(thread_box) {
+
+}
+
 ThreadContext* RandomWithDifferentDistributionsScheduler::Yield() {
-    return nullptr;
+    if (threads_box_.GetCountRunning() == 0) {
+        Printf("FATAL: ThreadSanitizer running threads is not exists\n");
+        Die();
+    }
+
+    return threads_box_.GetRunningByIndex(static_cast<uptr>(generator_.Rand(static_cast<int>(threads_box_.GetCountRunning()))));
 }
 
 void RandomWithDifferentDistributionsScheduler::Start() {
@@ -13,7 +23,11 @@ void RandomWithDifferentDistributionsScheduler::Start() {
 }
 
 void RandomWithDifferentDistributionsScheduler::Finish() {
+    generator_.NextGenerator();
+}
 
+bool RandomWithDifferentDistributionsScheduler::IsEnd() {
+    return false;
 }
 
 void RandomWithDifferentDistributionsScheduler::Initialize() {

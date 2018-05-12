@@ -9,13 +9,15 @@ namespace __relacy {
 
 class RandomScheduler : public Scheduler {
   public:
-   RandomScheduler(ThreadsBox& thread_box);
+   RandomScheduler(ThreadsBox& threads_box);
 
    ThreadContext* Yield() override;
 
    void Start() override;
 
    void Finish() override;
+
+   bool IsEnd() override;
 
    void Initialize() override;
 

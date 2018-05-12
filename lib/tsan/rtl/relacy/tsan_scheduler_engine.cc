@@ -7,7 +7,7 @@
 #include <unistd.h>
 #include <sys/wait.h>
 #include <sys/mman.h>
-#include "random_generator.h"
+#include "rtl/relacy/schedulers/tsan_random_generator.h"
 #include "rtl/tsan_rtl.h"
 #include <linux/unistd.h>
 #include <asm/ldt.h>
@@ -40,13 +40,13 @@ SchedulerEngine::SchedulerEngine() {
     new (scheduler_) AllStatesScheduler{};
   } else if (!strcmp(flags()->scheduler_type, "full_path")) {
     scheduler_ = static_cast<FullPathScheduler *>(InternalCalloc(1, sizeof(FullPathScheduler)));
-    new (scheduler_) FullPathScheduler{};
+    new (scheduler_) FullPathScheduler{threads_box_};
   } else if (!strcmp(flags()->scheduler_type, "parallel_full_path")) {
     scheduler_ = static_cast<ParallelFullPathScheduler *>(InternalCalloc(1, sizeof(ParallelFullPathScheduler)));
     new (scheduler_) ParallelFullPathScheduler{};
   } else if (!strcmp(flags()->scheduler_type, "random_with_different_distributions")) {
     scheduler_ = static_cast<RandomWithDifferentDistributionsScheduler *>(InternalCalloc(1, sizeof(RandomWithDifferentDistributionsScheduler)));
-    new (scheduler_) RandomWithDifferentDistributionsScheduler{};
+    new (scheduler_) RandomWithDifferentDistributionsScheduler{threads_box_};
   } else if (!strcmp(flags()->scheduler_type, "fixed_window")) {
     scheduler_ = static_cast<FixedWindowScheduler *>(InternalCalloc(1, sizeof(FixedWindowScheduler)));
     new (scheduler_) FixedWindowScheduler{};
@@ -106,6 +106,9 @@ void SchedulerEngine::AddFiberContext(int tid, ThreadContext *context) {
 }
 
 void SchedulerEngine::Yield() {
+  if (GetPlatformType() == PlatformType::OS) {
+    return;
+  }
   Yield(scheduler_->Yield());
 }
 
@@ -166,7 +169,7 @@ void SchedulerEngine::Start() {
    return;
  }
  scheduler_->Initialize();
- while (true) {
+ while (!scheduler_->IsEnd()) {
     pid_t pid = fork();
     if (pid < 0) {
       Printf("FATAL: ThreadSanitizer fork error\n");
@@ -188,6 +191,9 @@ void SchedulerEngine::Start() {
       break;
     }
   }
+  if (scheduler_->IsEnd()) {
+     scheduler_->Start();
+ }
 }
 
 ThreadContext* SchedulerEngine::GetParent() {

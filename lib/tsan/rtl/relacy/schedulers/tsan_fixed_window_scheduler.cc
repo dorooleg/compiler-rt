@@ -16,6 +16,10 @@ void FixedWindowScheduler::Finish() {
 
 }
 
+bool FixedWindowScheduler::IsEnd() {
+    return false;
+}
+
 void FixedWindowScheduler::Initialize() {
 
 }
