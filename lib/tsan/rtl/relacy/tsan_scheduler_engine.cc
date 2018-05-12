@@ -49,7 +49,7 @@ SchedulerEngine::SchedulerEngine() {
     new (scheduler_) RandomWithDifferentDistributionsScheduler{threads_box_};
   } else if (!strcmp(flags()->scheduler_type, "fixed_window")) {
     scheduler_ = static_cast<FixedWindowScheduler *>(InternalCalloc(1, sizeof(FixedWindowScheduler)));
-    new (scheduler_) FixedWindowScheduler{};
+    new (scheduler_) FixedWindowScheduler{threads_box_, 3};
   } else {
     Printf("FATAL: ThreadSanitizer invalid scheduler type. Please check TSAN_OPTIONS!\n");
     Die();

@@ -57,6 +57,8 @@ void GeneratorPaths::Next() {
             paths_[i] = p % ((unsigned int) border_[i] + 1);
             p = p / ((unsigned int) border_[i] + 1);
         }
+    } else {
+        p = 0;
     }
 
     if (invalidate_pos_ != -1) {
