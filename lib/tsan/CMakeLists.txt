@@ -52,7 +52,7 @@ set(TSAN_SOURCES
   rtl/tsan_suppressions.cc
   rtl/tsan_symbolize.cc
   rtl/tsan_sync.cc
-  rtl/relacy/tsan_generator_paths.cc
+  rtl/relacy/schedulers/tsan_generator_paths.cc
   rtl/relacy/tsan_threads_box.cc
   rtl/relacy/tsan_thread_context.cc)
 
@@ -79,7 +79,9 @@ elseif(UNIX)
     rtl/relacy/schedulers/tsan_random_with_different_distributions_scheduler.cc
     rtl/relacy/platforms/tsan_fiber_tls_copy_platform.cc
     rtl/relacy/platforms/tsan_fiber_tls_swap_platform.cc
-    rtl/relacy/platforms/tsan_pthread_platform.cc)
+    rtl/relacy/platforms/tsan_pthread_platform.cc
+    rtl/relacy/schedulers/tsan_random_generator.cc
+    rtl/relacy/tsan_shared_memory.cc)
 endif()
 
 set(TSAN_HEADERS
@@ -108,7 +110,7 @@ set(TSAN_HEADERS
   rtl/tsan_sync.h
   rtl/tsan_trace.h
   rtl/tsan_update_shadow_word_inl.h
-  rtl/relacy/tsan_generator_paths.h
+  rtl/relacy/schedulers/tsan_generator_paths.h
   rtl/relacy/tsan_threads_box.h
   rtl/relacy/tsan_thread_context.h
   rtl/relacy/tsan_type_traits.h
@@ -123,7 +125,12 @@ set(TSAN_HEADERS
   rtl/relacy/schedulers/tsan_random_with_different_distributions_scheduler.h
   rtl/relacy/platforms/tsan_fiber_tls_copy_platform.h
   rtl/relacy/platforms/tsan_fiber_tls_swap_platform.h
-  rtl/relacy/platforms/tsan_pthread_platform.h)
+  rtl/relacy/platforms/tsan_pthread_platform.h
+  rtl/relacy/tsan_shared_value.h
+  rtl/relacy/schedulers/tsan_random_generator.h
+  rtl/relacy/tsan_shared_memory.h
+  rtl/relacy/tsan_shared_vector.h
+  rtl/relacy/tsan_shared_value.h)
 
 set(TSAN_RUNTIME_LIBRARIES)
 add_compiler_rt_component(tsan)

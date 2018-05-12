@@ -39,6 +39,8 @@ class ThreadsBox {
 
    void WakeupJoiningByWaitTid(int wait_tid);
 
+   unsigned long GetRunningBitSet();
+
   private:
    template<typename T>
    typename enable_if<!is_pointer<T>::value, int>::type MaxTid(const Vector<T> &threads) const {

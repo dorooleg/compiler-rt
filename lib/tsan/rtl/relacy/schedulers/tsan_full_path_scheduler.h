@@ -10,7 +10,7 @@ namespace __relacy {
 
 class FullPathScheduler : public Scheduler {
   public:
-   FullPathScheduler(ThreadsBox& threads_box);
+   explicit FullPathScheduler(ThreadsBox& threads_box);
 
    ThreadContext* Yield() override;
 

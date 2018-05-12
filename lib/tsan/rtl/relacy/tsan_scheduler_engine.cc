@@ -37,7 +37,7 @@ SchedulerEngine::SchedulerEngine() {
     new (scheduler_) RandomScheduler{threads_box_};
   } else if (!strcmp(flags()->scheduler_type, "all_states")) {
     scheduler_ = static_cast<AllStatesScheduler *>(InternalCalloc(1, sizeof(AllStatesScheduler)));
-    new (scheduler_) AllStatesScheduler{};
+    new (scheduler_) AllStatesScheduler{threads_box_};
   } else if (!strcmp(flags()->scheduler_type, "full_path")) {
     scheduler_ = static_cast<FullPathScheduler *>(InternalCalloc(1, sizeof(FullPathScheduler)));
     new (scheduler_) FullPathScheduler{threads_box_};

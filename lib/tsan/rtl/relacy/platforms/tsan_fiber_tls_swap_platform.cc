@@ -19,7 +19,7 @@ static void set_tls_addr(unsigned long addr) {
 
 class FiberContext : public ThreadContext {
   public:
-   FiberContext(ucontext_t *fiber_context = nullptr, char *tls = nullptr, FiberContext *parent = nullptr, int tid = 0)
+   explicit FiberContext(ucontext_t *fiber_context = nullptr, char *tls = nullptr, FiberContext *parent = nullptr, int tid = 0)
            : ThreadContext(tid), ctx_(fiber_context), tls_(tls) {
        SetParent(parent);
    }

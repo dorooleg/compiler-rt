@@ -64,6 +64,14 @@ void ThreadsBox::WakeupJoiningByWaitTid(int wait_tid) {
   }
 }
 
+unsigned long ThreadsBox::GetRunningBitSet() {
+    unsigned long bit_set = 0;
+    for (uptr i = 0; i < running_threads_.Size(); i++) {
+        bit_set |= 1UL << (unsigned long)running_threads_[i]->GetTid();
+    }
+    return bit_set;
+}
+
 template<typename T>
 T ThreadsBox::ExtractByIndex(uptr idx, Vector<T> &threads) {
   DCHECK_GE(threads.Size(), idx + 1);
