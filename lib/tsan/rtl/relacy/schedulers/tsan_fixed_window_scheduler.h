@@ -32,6 +32,7 @@ class FixedWindowScheduler : public Scheduler {
    SharedValue<int> invalidate_pos_;
    int window_size_;
    bool is_end_;
+   uptr iteration_;
 };
 
 }

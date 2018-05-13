@@ -11,7 +11,8 @@ FixedWindowScheduler::FixedWindowScheduler(ThreadsBox& threads_box, int window_s
         , window_paths_("window_paths")
         , window_border_("window_border")
         , window_size_(window_size)
-        , is_end_(false) {
+        , is_end_(false)
+        , iteration_(0) {
     invalidate_pos_ = -1;
 }
 
@@ -39,6 +40,7 @@ ThreadContext *FixedWindowScheduler::Yield() {
 }
 
 void FixedWindowScheduler::Start() {
+    srand(iteration_);
     depth_ = 0;
     invalidate_pos_ = -1;
 }
@@ -74,6 +76,8 @@ void FixedWindowScheduler::Finish() {
         window_paths_.Resize(0);
         ++offset_;
     }
+
+    ++iteration_;
 }
 
 bool FixedWindowScheduler::IsEnd() {
