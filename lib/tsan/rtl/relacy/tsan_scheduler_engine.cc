@@ -65,7 +65,7 @@ SchedulerEngine::SchedulerEngine() {
     new (platform_) FiberTlsCopyPlatform{threads_box_};
   } else if (!strcmp(flags()->scheduler_platform, "pthread")) {
     platform_ = static_cast<PthreadPlatform *>(InternalCalloc(1, sizeof(PthreadPlatform)));
-    new (platform_) PthreadPlatform{};
+    new (platform_) PthreadPlatform{threads_box_};
   } else {
     Printf("FATAL: ThreadSanitizer invalid platform type. Please check TSAN_OPTIONS!\n");
     Die();
@@ -191,6 +191,7 @@ void SchedulerEngine::Start() {
       break;
     }
   }
+  platform_->Start();
   if (scheduler_->IsEnd()) {
      scheduler_->Start();
  }

@@ -116,5 +116,9 @@ void FiberTlsCopyPlatform::Yield(ThreadContext *context) {
     }
 }
 
+void FiberTlsCopyPlatform::Start() {
+
+}
+
 }
 }

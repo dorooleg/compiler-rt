@@ -127,5 +127,9 @@ void FiberTlsSwapPlatform::Yield(ThreadContext *context) {
     }
 }
 
+void FiberTlsSwapPlatform::Start() {
+
+}
+
 }
 }

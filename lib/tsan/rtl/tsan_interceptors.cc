@@ -972,6 +972,13 @@ extern "C" void *__tsan_thread_start_func(void *arg) {
 #endif
 
 #if SANITIZER_RELACY_SCHEDULER
+  if (_fiber_manager.GetPlatformType() == __relacy::PlatformType::PTHREAD) {
+    _fiber_manager.StopThread();
+    _fiber_manager.Yield();
+    volatile int foo = 42;
+    foo++;
+    return res;
+  }
   if (_fiber_manager.GetPlatformType() == __relacy::PlatformType::OS) {
     volatile int foo = 42;
     foo++;

@@ -17,6 +17,8 @@ class Platform {
 
    virtual void Yield(ThreadContext *context) = 0;
 
+   virtual void Start() = 0;
+
    virtual ~Platform() = default;
 };
 

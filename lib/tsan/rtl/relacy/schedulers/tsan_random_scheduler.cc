@@ -13,7 +13,7 @@ RandomScheduler::RandomScheduler(ThreadsBox& threads_box)
 
 ThreadContext* RandomScheduler::Yield() {
     if (threads_box_.GetCountRunning() == 0) {
-        Printf("FATAL: ThreadSanitizer running threads is not exists\n");
+        Printf("FATAL: ThreadSanitizer random scheduler running threads is not exists\n");
         Die();
     }
 

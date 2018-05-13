@@ -19,6 +19,8 @@ class FiberTlsCopyPlatform : public Platform {
 
    void Yield(ThreadContext *context) override;
 
+   void Start() override;
+
   private:
    static constexpr uptr FIBER_STACK_SIZE = 64 * 1024;
    char *tls_base_;
