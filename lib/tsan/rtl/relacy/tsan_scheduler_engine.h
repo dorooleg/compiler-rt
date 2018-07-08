@@ -30,6 +30,10 @@ class SchedulerEngine {
 
    void StopThread();
 
+   int Lock(void *m);
+
+   int Unlock(void *m);
+
    void Initialize();
 
    ThreadContext* GetParent();
@@ -38,7 +42,12 @@ class SchedulerEngine {
 
    PlatformType GetPlatformType();
 
-   ~SchedulerEngine() = default;
+   int CondWait(void *c, void *m);
+
+   int Signal(void *c);
+
+   int Broadcast(void *c);
+
   private:
    void Start();
 
@@ -50,7 +59,7 @@ class SchedulerEngine {
 
 }
 #if SANITIZER_RELACY_SCHEDULER
-extern __relacy::SchedulerEngine _fiber_manager;
+extern __relacy::SchedulerEngine _scheduler_engine;
 #endif
 
 }

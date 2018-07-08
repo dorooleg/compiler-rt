@@ -46,6 +46,9 @@
 #include "sanitizer_platform_interceptors.h"
 #include "sanitizer_symbolizer.h"
 #include "sanitizer_tls_get_addr.h"
+#if SANITIZER_RELACY_SCHEDULER
+#include <tsan/rtl/relacy/tsan_scheduler_engine.h>
+#endif
 
 #include <stdarg.h>
 
@@ -4026,7 +4029,11 @@ INTERCEPTOR(int, pthread_mutex_lock, void *m) {
   void *ctx;
   COMMON_INTERCEPTOR_ENTER(ctx, pthread_mutex_lock, m);
   COMMON_INTERCEPTOR_MUTEX_PRE_LOCK(ctx, m);
+#ifdef SANITIZER_RELACY_SCHEDULER
+  int res = _scheduler_engine.Lock(m);
+#else
   int res = REAL(pthread_mutex_lock)(m);
+#endif
   if (res == errno_EOWNERDEAD)
     COMMON_INTERCEPTOR_MUTEX_REPAIR(ctx, m);
   if (res == 0 || res == errno_EOWNERDEAD)
@@ -4040,7 +4047,11 @@ INTERCEPTOR(int, pthread_mutex_unlock, void *m) {
   void *ctx;
   COMMON_INTERCEPTOR_ENTER(ctx, pthread_mutex_unlock, m);
   COMMON_INTERCEPTOR_MUTEX_UNLOCK(ctx, m);
-  int res = REAL(pthread_mutex_unlock)(m);
+#ifdef SANITIZER_RELACY_SCHEDULER
+    int res = _scheduler_engine.Unlock(m);
+#else
+    int res = REAL(pthread_mutex_unlock)(m);
+#endif
   if (res == errno_EINVAL)
     COMMON_INTERCEPTOR_MUTEX_INVALID(ctx, m);
   return res;

@@ -8,23 +8,6 @@
 namespace __tsan {
 namespace __relacy {
 
-class PthreadContext : public ThreadContext {
-  public:
-   PthreadContext() : m_wait(true) {
-
-   }
-
-   void SetWait(bool wait) {
-       m_wait = wait;
-   }
-
-   bool GetWait() {
-       return m_wait;
-   }
-
-  private:
-   bool m_wait{};
-};
 
 PthreadPlatform::PthreadPlatform(ThreadsBox& threads_box)
         : threads_box_(threads_box) {
@@ -36,7 +19,17 @@ PthreadPlatform::PthreadPlatform(ThreadsBox& threads_box)
     threads_box_.SetCurrentThread(fiber_context);
 }
 
+volatile int exclusion_create = 0;
+
 ThreadContext *PthreadPlatform::Create(void *th, void *attr, void (*callback)(), void *param) {
+    while (__sync_lock_test_and_set(&exclusion_create, 1)) {
+        Printf("FATAL: Double threads in critical section create %d \n", threads_box_.GetCurrentThread()->GetTid());
+        threads_box_.PrintDebugInfo();
+        Die();
+        // Do nothing. This GCC builtin instruction
+        // ensures memory barrier.
+    }
+
     PthreadContext *fiber_context = static_cast<PthreadContext *>(InternalCalloc(1, sizeof(PthreadContext)));
     new(fiber_context) PthreadContext{};
     fiber_context->SetParent(threads_box_.GetCurrentThread());
@@ -50,13 +43,28 @@ void PthreadPlatform::Initialize() {
     while(thread->GetWait()) {
         internal_sched_yield();
     }
+
+    __sync_synchronize(); // Memory barrier.
+    exclusion_create = 0;
 }
 
 PlatformType PthreadPlatform::GetType() {
     return PlatformType::PTHREAD;
 }
 
+volatile int exclusion = 0;
+
 void PthreadPlatform::Yield(ThreadContext *context) {
+
+
+    while (__sync_lock_test_and_set(&exclusion, 1)) {
+        //Printf("FATAL: Double threads in critical section %d \n", threads_box_.GetCurrentThread()->GetTid());
+        threads_box_.PrintDebugInfo();
+        //Die();
+        // Do nothing. This GCC builtin instruction
+        // ensures memory barrier.
+    }
+
     if (context == nullptr) {
         Printf("FATAL: ThreadSanitizer context is nullptr\n");
         Die();
@@ -71,8 +79,19 @@ void PthreadPlatform::Yield(ThreadContext *context) {
     threads_box_.SetCurrentThread(context);
     if (!threads_box_.ContainsStoppedByTid(old_thread->GetTid())) {
         old_thread->SetWait(true);
+    } else {
+        if (old_thread->GetTid() == new_thread->GetTid()) {
+            Printf("FATAL: tids are equals\n");
+            threads_box_.PrintDebugInfo();
+            Die();
+        }
     }
+    old_thread->SetWait(true);
     new_thread->SetWait(false);
+
+    __sync_synchronize(); // Memory barrier.
+    exclusion = 0;
+
     while(old_thread->GetWait()) {
         internal_sched_yield();
     }

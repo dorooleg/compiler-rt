@@ -932,7 +932,7 @@ struct ThreadParam {
 
 extern "C" void *__tsan_thread_start_func(void *arg) {
 #if SANITIZER_RELACY_SCHEDULER
-  _fiber_manager.Initialize();
+  _scheduler_engine.Initialize();
 {
 #endif
   ThreadParam *p = (ThreadParam*)arg;
@@ -959,7 +959,7 @@ extern "C" void *__tsan_thread_start_func(void *arg) {
     ThreadStart(thr, tid, GetTid(), /*workerthread*/ false);
     atomic_store(&p->tid, 0, memory_order_release);
 #if SANITIZER_RELACY_SCHEDULER
-    _fiber_manager.Yield(_fiber_manager.GetParent());
+    _scheduler_engine.Yield(_scheduler_engine.GetParent());
 #endif
   }
   void *res = callback(param);
@@ -972,14 +972,15 @@ extern "C" void *__tsan_thread_start_func(void *arg) {
 #endif
 
 #if SANITIZER_RELACY_SCHEDULER
-  if (_fiber_manager.GetPlatformType() == __relacy::PlatformType::PTHREAD) {
-    _fiber_manager.StopThread();
-    _fiber_manager.Yield();
+  /*_scheduler_engine.Yield();
+  if (_scheduler_engine.GetPlatformType() == __relacy::PlatformType::PTHREAD) {
+    _scheduler_engine.StopThread();
+    _scheduler_engine.Yield();
     volatile int foo = 42;
     foo++;
     return res;
-  }
-  if (_fiber_manager.GetPlatformType() == __relacy::PlatformType::OS) {
+  } */
+  if (_scheduler_engine.GetPlatformType() == __relacy::PlatformType::OS) {
     volatile int foo = 42;
     foo++;
     return res;
@@ -987,9 +988,11 @@ extern "C" void *__tsan_thread_start_func(void *arg) {
 }
   volatile int foo = 42;
   foo++;
-  _fiber_manager.StopThread();
+  _scheduler_engine.StopThread();
   DestroyThreadState();
-  _fiber_manager.Yield();
+  _scheduler_engine.Yield();
+  Printf("ThreadSanitizer: failed stopped thread was running!");
+  Die();
   return nullptr;
 #endif
 }
@@ -1025,7 +1028,7 @@ TSAN_INTERCEPTOR(int, pthread_create,
   p.param = param;
   atomic_store(&p.tid, 0, memory_order_relaxed);
 #if SANITIZER_RELACY_SCHEDULER
-  __relacy::ThreadContext* fiber_context = nullptr;
+  __relacy::ThreadContext* context = nullptr;
 #endif
   int res = -1;
   {
@@ -1033,8 +1036,8 @@ TSAN_INTERCEPTOR(int, pthread_create,
     ScopedIgnoreInterceptors ignore;
     ThreadIgnoreBegin(thr, pc);
 #if SANITIZER_RELACY_SCHEDULER
-    if (_fiber_manager.GetPlatformType() != __relacy::PlatformType::OS) {
-      fiber_context = _fiber_manager
+    if (_scheduler_engine.GetPlatformType() != __relacy::PlatformType::OS) {
+      context = _scheduler_engine
           .CreateFiber(th, attr,
                        reinterpret_cast<void(*)()>(__tsan_thread_start_func),
                        &p);
@@ -1067,7 +1070,7 @@ TSAN_INTERCEPTOR(int, pthread_create,
 
     atomic_store(&p.tid, tid, memory_order_release);
 #if SANITIZER_RELACY_SCHEDULER
-    _fiber_manager.Yield(fiber_context);
+    _scheduler_engine.Yield(context);
 #endif
     while (atomic_load(&p.tid, memory_order_acquire) != 0)
       internal_sched_yield();
@@ -1075,7 +1078,8 @@ TSAN_INTERCEPTOR(int, pthread_create,
   if (attr == &myattr)
     pthread_attr_destroy(&myattr);
 #if SANITIZER_RELACY_SCHEDULER
-  _fiber_manager.AddFiberContext(tid, fiber_context);
+  _scheduler_engine.AddFiberContext(tid, context);
+  _scheduler_engine.Yield();
 #endif
   return res;
 }
@@ -1086,9 +1090,9 @@ TSAN_INTERCEPTOR(int, pthread_join, void *th, void **ret) {
   ThreadIgnoreBegin(thr, pc);
 #if SANITIZER_RELACY_SCHEDULER
   int res = 0;
-  if (_fiber_manager.GetPlatformType() != __relacy::PlatformType::OS) {
-    _fiber_manager.Join(tid);
-    _fiber_manager.Yield();
+  if (_scheduler_engine.GetPlatformType() != __relacy::PlatformType::OS) {
+    _scheduler_engine.Join(tid);
+    _scheduler_engine.Yield();
   } else {
     res = BLOCK_REAL(pthread_join)(th, ret);
   }
@@ -1201,12 +1205,49 @@ static int cond_wait(ThreadState *thr, uptr pc, ScopedInterceptor *si,
   return res;
 }
 
+static int cond_wait_scheduler(ThreadState *thr, uptr pc, ScopedInterceptor *si,
+                     int (*fn)(void *c, void *m, void *abstime), void *c,
+                     void *m, void *t) {
+    MemoryAccessRange(thr, pc, (uptr)c, sizeof(uptr), false);
+    MutexUnlock(thr, pc, (uptr)m);
+    CondMutexUnlockCtx arg = {si, thr, pc, m};
+    int res = 0;
+    // This ensures that we handle mutex lock even in case of pthread_cancel.
+    // See test/tsan/cond_cancel.cc.
+    {
+        // Enable signal delivery while the thread is blocked.
+        BlockingCall bc(thr);
+        res = _scheduler_engine.CondWait(c, m);
+    }
+    if (res == errno_EOWNERDEAD) MutexRepair(thr, pc, (uptr)m);
+    MutexPostLock(thr, pc, (uptr)m, MutexFlagDoPreLockOnPostLock);
+    return res;
+}
+
+
+
 INTERCEPTOR(int, pthread_cond_wait, void *c, void *m) {
+#ifdef SANITIZER_RELACY_SCHEDULER
+  if (_scheduler_engine.GetPlatformType() == __relacy::PlatformType::OS) {
+    void *cond = init_cond(c);
+    SCOPED_TSAN_INTERCEPTOR(pthread_cond_wait, cond, m);
+    return cond_wait(thr, pc, &si, (int (*)(void *c, void *m, void *abstime))REAL(
+                                     pthread_cond_wait),
+                   cond, m, 0);
+  } else {
+    void *cond = init_cond(c);
+    SCOPED_TSAN_INTERCEPTOR(pthread_cond_wait, cond, m);
+    return cond_wait_scheduler(thr, pc, &si, (int (*)(void *c, void *m, void *abstime))REAL(
+                                     pthread_cond_wait),
+                   cond, m, 0);
+  }
+#else
   void *cond = init_cond(c);
   SCOPED_TSAN_INTERCEPTOR(pthread_cond_wait, cond, m);
   return cond_wait(thr, pc, &si, (int (*)(void *c, void *m, void *abstime))REAL(
                                      pthread_cond_wait),
                    cond, m, 0);
+#endif
 }
 
 INTERCEPTOR(int, pthread_cond_timedwait, void *c, void *m, void *abstime) {
@@ -1227,17 +1268,35 @@ INTERCEPTOR(int, pthread_cond_timedwait_relative_np, void *c, void *m,
 #endif
 
 INTERCEPTOR(int, pthread_cond_signal, void *c) {
+#ifdef SANITIZER_RELACY_SCHEDULER
+  void *cond = init_cond(c);
+  SCOPED_TSAN_INTERCEPTOR(pthread_cond_signal, cond);
+  MemoryAccessRange(thr, pc, (uptr)c, sizeof(uptr), false);
+  return _scheduler_engine.GetPlatformType() == __relacy::PlatformType::OS
+            ? REAL(pthread_cond_signal)(cond)
+            : _scheduler_engine.Signal(c);
+#else
   void *cond = init_cond(c);
   SCOPED_TSAN_INTERCEPTOR(pthread_cond_signal, cond);
   MemoryAccessRange(thr, pc, (uptr)c, sizeof(uptr), false);
   return REAL(pthread_cond_signal)(cond);
+#endif
 }
 
 INTERCEPTOR(int, pthread_cond_broadcast, void *c) {
+#ifdef SANITIZER_RELACY_SCHEDULER
   void *cond = init_cond(c);
   SCOPED_TSAN_INTERCEPTOR(pthread_cond_broadcast, cond);
   MemoryAccessRange(thr, pc, (uptr)c, sizeof(uptr), false);
-  return REAL(pthread_cond_broadcast)(cond);
+  return _scheduler_engine.GetPlatformType() == __relacy::PlatformType::OS
+            ? REAL(pthread_cond_broadcast)(cond)
+            : _scheduler_engine.Broadcast(c);
+#else
+    void *cond = init_cond(c);
+    SCOPED_TSAN_INTERCEPTOR(pthread_cond_broadcast, cond);
+    MemoryAccessRange(thr, pc, (uptr)c, sizeof(uptr), false);
+    return REAL(pthread_cond_broadcast)(cond);
+#endif
 }
 
 INTERCEPTOR(int, pthread_cond_destroy, void *c) {
@@ -1280,6 +1339,7 @@ TSAN_INTERCEPTOR(int, pthread_mutex_destroy, void *m) {
 }
 
 TSAN_INTERCEPTOR(int, pthread_mutex_trylock, void *m) {
+    Printf("trylock\n");
   SCOPED_TSAN_INTERCEPTOR(pthread_mutex_trylock, m);
   int res = REAL(pthread_mutex_trylock)(m);
   if (res == errno_EOWNERDEAD)
@@ -1291,6 +1351,7 @@ TSAN_INTERCEPTOR(int, pthread_mutex_trylock, void *m) {
 
 #if !SANITIZER_MAC
 TSAN_INTERCEPTOR(int, pthread_mutex_timedlock, void *m, void *abstime) {
+    Printf("timed\n");
   SCOPED_TSAN_INTERCEPTOR(pthread_mutex_timedlock, m, abstime);
   int res = REAL(pthread_mutex_timedlock)(m, abstime);
   if (res == 0) {
@@ -1320,6 +1381,7 @@ TSAN_INTERCEPTOR(int, pthread_spin_destroy, void *m) {
 }
 
 TSAN_INTERCEPTOR(int, pthread_spin_lock, void *m) {
+    Printf("spin lock\n");
   SCOPED_TSAN_INTERCEPTOR(pthread_spin_lock, m);
   MutexPreLock(thr, pc, (uptr)m);
   int res = REAL(pthread_spin_lock)(m);
@@ -1330,6 +1392,7 @@ TSAN_INTERCEPTOR(int, pthread_spin_lock, void *m) {
 }
 
 TSAN_INTERCEPTOR(int, pthread_spin_trylock, void *m) {
+    Printf("spin trylock\n");
   SCOPED_TSAN_INTERCEPTOR(pthread_spin_trylock, m);
   int res = REAL(pthread_spin_trylock)(m);
   if (res == 0) {
@@ -1339,6 +1402,7 @@ TSAN_INTERCEPTOR(int, pthread_spin_trylock, void *m) {
 }
 
 TSAN_INTERCEPTOR(int, pthread_spin_unlock, void *m) {
+    Printf("spin unlock\n");
   SCOPED_TSAN_INTERCEPTOR(pthread_spin_unlock, m);
   MutexUnlock(thr, pc, (uptr)m);
   int res = REAL(pthread_spin_unlock)(m);
@@ -1365,6 +1429,7 @@ TSAN_INTERCEPTOR(int, pthread_rwlock_destroy, void *m) {
 }
 
 TSAN_INTERCEPTOR(int, pthread_rwlock_rdlock, void *m) {
+    Printf("rwlock\n");
   SCOPED_TSAN_INTERCEPTOR(pthread_rwlock_rdlock, m);
   MutexPreReadLock(thr, pc, (uptr)m);
   int res = REAL(pthread_rwlock_rdlock)(m);
@@ -1375,6 +1440,7 @@ TSAN_INTERCEPTOR(int, pthread_rwlock_rdlock, void *m) {
 }
 
 TSAN_INTERCEPTOR(int, pthread_rwlock_tryrdlock, void *m) {
+    Printf("rdlock\n");
   SCOPED_TSAN_INTERCEPTOR(pthread_rwlock_tryrdlock, m);
   int res = REAL(pthread_rwlock_tryrdlock)(m);
   if (res == 0) {
@@ -1385,6 +1451,7 @@ TSAN_INTERCEPTOR(int, pthread_rwlock_tryrdlock, void *m) {
 
 #if !SANITIZER_MAC
 TSAN_INTERCEPTOR(int, pthread_rwlock_timedrdlock, void *m, void *abstime) {
+    Printf("timed_rdlock\n");
   SCOPED_TSAN_INTERCEPTOR(pthread_rwlock_timedrdlock, m, abstime);
   int res = REAL(pthread_rwlock_timedrdlock)(m, abstime);
   if (res == 0) {
@@ -1395,6 +1462,7 @@ TSAN_INTERCEPTOR(int, pthread_rwlock_timedrdlock, void *m, void *abstime) {
 #endif
 
 TSAN_INTERCEPTOR(int, pthread_rwlock_wrlock, void *m) {
+    Printf("rwlock\n");
   SCOPED_TSAN_INTERCEPTOR(pthread_rwlock_wrlock, m);
   MutexPreLock(thr, pc, (uptr)m);
   int res = REAL(pthread_rwlock_wrlock)(m);
@@ -1405,6 +1473,7 @@ TSAN_INTERCEPTOR(int, pthread_rwlock_wrlock, void *m) {
 }
 
 TSAN_INTERCEPTOR(int, pthread_rwlock_trywrlock, void *m) {
+    Printf("rw trylock\n");
   SCOPED_TSAN_INTERCEPTOR(pthread_rwlock_trywrlock, m);
   int res = REAL(pthread_rwlock_trywrlock)(m);
   if (res == 0) {
@@ -1415,6 +1484,7 @@ TSAN_INTERCEPTOR(int, pthread_rwlock_trywrlock, void *m) {
 
 #if !SANITIZER_MAC
 TSAN_INTERCEPTOR(int, pthread_rwlock_timedwrlock, void *m, void *abstime) {
+    Printf("rwlock timed\n");
   SCOPED_TSAN_INTERCEPTOR(pthread_rwlock_timedwrlock, m, abstime);
   int res = REAL(pthread_rwlock_timedwrlock)(m, abstime);
   if (res == 0) {
@@ -1425,6 +1495,7 @@ TSAN_INTERCEPTOR(int, pthread_rwlock_timedwrlock, void *m, void *abstime) {
 #endif
 
 TSAN_INTERCEPTOR(int, pthread_rwlock_unlock, void *m) {
+    Printf("rwlock unlock\n");
   SCOPED_TSAN_INTERCEPTOR(pthread_rwlock_unlock, m);
   MutexReadOrWriteUnlock(thr, pc, (uptr)m);
   int res = REAL(pthread_rwlock_unlock)(m);
@@ -1447,6 +1518,7 @@ TSAN_INTERCEPTOR(int, pthread_barrier_destroy, void *b) {
 }
 
 TSAN_INTERCEPTOR(int, pthread_barrier_wait, void *b) {
+    Printf("barried wait\n");
   SCOPED_TSAN_INTERCEPTOR(pthread_barrier_wait, b);
   Release(thr, pc, (uptr)b);
   MemoryRead(thr, pc, (uptr)b, kSizeLog1);
@@ -1460,6 +1532,7 @@ TSAN_INTERCEPTOR(int, pthread_barrier_wait, void *b) {
 #endif
 
 TSAN_INTERCEPTOR(int, pthread_once, void *o, void (*f)()) {
+    Printf("pthread onces\n");
   SCOPED_INTERCEPTOR_RAW(pthread_once, o, f);
   if (o == 0 || f == 0)
     return errno_EINVAL;

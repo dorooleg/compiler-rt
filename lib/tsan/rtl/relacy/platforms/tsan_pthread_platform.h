@@ -7,6 +7,25 @@
 namespace __tsan {
 namespace __relacy {
 
+
+class PthreadContext : public ThreadContext {
+  public:
+   PthreadContext() : m_wait(true) {
+
+   }
+
+   void SetWait(bool wait) {
+       m_wait = wait;
+   }
+
+   bool GetWait() {
+       return m_wait;
+   }
+
+  private:
+   bool m_wait{};
+};
+
 class PthreadPlatform : public Platform {
   public:
    PthreadPlatform(ThreadsBox& threads_box);

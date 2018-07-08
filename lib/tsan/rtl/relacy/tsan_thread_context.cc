@@ -43,5 +43,63 @@ ThreadContext* JoinContext::GetWaitThread() {
   return wait_thread_;
 }
 
+MutexContext::MutexContext(ThreadContext* thread, void* mutex) : thread_(thread), mutex_(mutex) {
+}
+
+int MutexContext::GetTid() const {
+  return thread_->GetTid();
+}
+
+ThreadContext* MutexContext::GetCurrentThread() {
+  return thread_;
+}
+
+void* MutexContext::GetMutex() {
+  return mutex_;
+}
+
+ConditionVariableContext::ConditionVariableContext(void* cond_var) : cond_var_(cond_var) {
+
+}
+
+ThreadContext* ConditionVariableContext::ExtractByTid(int tid) {
+  for (uptr i = 0; i < threads_.Size(); i++) {
+    if (threads_[i]->GetTid() == tid) {
+      ThreadContext* context = threads_[i];
+      threads_[i] = threads_[threads_.Size() - 1];
+      threads_.PopBack();
+      return context;
+    }
+  }
+  return nullptr;
+}
+
+ThreadContext* ConditionVariableContext::ExtractBack() {
+  ThreadContext* context = threads_[threads_.Size() - 1];
+  threads_.PopBack();
+  return context;
+}
+
+ThreadContext* ConditionVariableContext::GetByTid(int tid) {
+    for (uptr i = 0; i < threads_.Size(); i++) {
+      if (threads_[i]->GetTid() == tid) {
+        return threads_[i];
+      }
+    }
+    return nullptr;
+}
+
+int ConditionVariableContext::CountThreads() const {
+  return static_cast<int>(threads_.Size());
+}
+
+void ConditionVariableContext::PushBack(ThreadContext* context) {
+  threads_.PushBack(context);
+}
+
+void* ConditionVariableContext::GetConditionVariable() {
+  return cond_var_;
+}
+
 }
 }

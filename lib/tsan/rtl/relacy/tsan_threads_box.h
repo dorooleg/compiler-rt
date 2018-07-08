@@ -31,7 +31,7 @@ class ThreadsBox {
 
    THREADS_INFO(Stopped, ThreadContext*)
 
-   THREADS_INFO(Waiting, ThreadContext*)
+   THREADS_INFO(Waiting, MutexContext)
 
    THREADS_INFO(Sleping, ThreadContext*)
 
@@ -41,7 +41,41 @@ class ThreadsBox {
 
    unsigned long GetRunningBitSet();
 
+   void AddMutex(void* mutex);
+
+   void ExtractMutex(void* mutex);
+
+   bool ExistsMutex(void* mutex);
+
+   ThreadContext* ExtractWaitByMutex(void* mutex);
+
+   void AddConditionVariable(void *c, ThreadContext* context);
+
+   ThreadContext* ExtractWaitByConditionVariable(void *c);
+
+   bool ExistsConditionVariable(void *c);
+
+   ConditionVariableContext* GetConditionVariable(void *c);
+
+   ThreadContext* GetConditionVariableThreadByTid(int tid);
+
+   void PrintDebugInfo();
+
   private:
+   template<typename T>
+   void Add(typename enable_if<!is_pointer<T>::value, T>::type context, Vector<T> &threads) {
+       if (!ContainsByTid(context.GetTid(), threads)) {
+           threads.PushBack(context);
+       }
+   }
+
+   template<typename T>
+   void Add(typename enable_if<is_pointer<T>::value, T>::type context, Vector<T> &threads) {
+       if (!ContainsByTid(context->GetTid(), threads)) {
+           threads.PushBack(context);
+       }
+   }
+
    template<typename T>
    typename enable_if<!is_pointer<T>::value, int>::type MaxTid(const Vector<T> &threads) const {
      int m = 0;
@@ -134,16 +168,16 @@ class ThreadsBox {
    template<typename T>
    T GetByIndex(uptr idx, Vector<T> &threads);
 
-   template<typename T>
-   void Add(T context, Vector<T> &threads);
-
   private:
    ThreadContext *current_thread_;
    Vector<ThreadContext *> running_threads_;
    Vector<JoinContext> joining_threads_;
    Vector<ThreadContext *> stopped_threads_;
-   Vector<ThreadContext *> waiting_threads_;
+   Vector<MutexContext> waiting_threads_;
    Vector<ThreadContext *> sleping_threads_;
+
+   Vector<void*> locked_mutexes_;
+   Vector<ConditionVariableContext> condition_variables_;
 };
 
 }
