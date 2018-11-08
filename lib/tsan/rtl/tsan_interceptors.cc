@@ -1217,7 +1217,9 @@ static int cond_wait_scheduler(ThreadState *thr, uptr pc, ScopedInterceptor *si,
     {
         // Enable signal delivery while the thread is blocked.
         BlockingCall bc(thr);
+#ifdef SANITIZER_RELACY_SCHEDULER
         res = _scheduler_engine.CondWait(c, m);
+#endif
     }
     if (res == errno_EOWNERDEAD) MutexRepair(thr, pc, (uptr)m);
     MutexPostLock(thr, pc, (uptr)m, MutexFlagDoPreLockOnPostLock);
