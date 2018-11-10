@@ -4,6 +4,11 @@ include_directories(..)
 
 set(TSAN_CFLAGS ${SANITIZER_COMMON_CFLAGS})
 
+option(SANITIZER_RELACY_SCHEDULER "manually scheduler for thread" OFF)
+if (SANITIZER_RELACY_SCHEDULER)
+    add_definitions(-DSANITIZER_RELACY_SCHEDULER)
+endif()
+
 # SANITIZER_COMMON_CFLAGS contains -fPIC, but it's performance-critical for
 # TSan runtime to be built with -fPIE to reduce the number of register spills.
 append_list_if(COMPILER_RT_HAS_FPIE_FLAG -fPIE TSAN_CFLAGS)

@@ -1,7 +1,7 @@
 #ifndef TSAN_THREADS_BOX_H
 #define TSAN_THREADS_BOX_H
 
-#include <rtl/tsan_defs.h>
+#include <tsan/rtl/tsan_defs.h>
 #include "sanitizer_common/sanitizer_vector.h"
 #include "tsan_thread_context.h"
 #include "tsan_type_traits.h"

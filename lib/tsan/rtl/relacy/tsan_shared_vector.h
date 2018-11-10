@@ -4,7 +4,7 @@
 #include "sanitizer_common/sanitizer_libc.h"
 #include "tsan_shared_value.h"
 #include "tsan_shared_memory.h"
-#include "rtl/tsan_rtl.h"
+#include "tsan/rtl/tsan_rtl.h"
 
 namespace __tsan {
 namespace __relacy {

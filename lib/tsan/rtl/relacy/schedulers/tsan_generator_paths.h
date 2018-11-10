@@ -2,7 +2,7 @@
 #define TSAN_GENERATOR_PATHS_H
 
 #include "sanitizer_common/sanitizer_libc.h"
-#include "rtl/relacy/tsan_shared_vector.h"
+#include "tsan/rtl/relacy/tsan_shared_vector.h"
 
 namespace __tsan {
 namespace __relacy {

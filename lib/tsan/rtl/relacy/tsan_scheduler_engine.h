@@ -6,7 +6,7 @@
  */
 
 #include "sanitizer_common/sanitizer_vector.h"
-#include "rtl/relacy/schedulers/tsan_generator_paths.h"
+#include "tsan/rtl/relacy/schedulers/tsan_generator_paths.h"
 #include "tsan_threads_box.h"
 #include "tsan_scheduler.h"
 #include "tsan_platform.h"
@@ -57,11 +57,13 @@ class SchedulerEngine {
    Platform *platform_;
 };
 
-}
-#if SANITIZER_RELACY_SCHEDULER
-extern __relacy::SchedulerEngine _scheduler_engine;
-#endif
 
 }
+}
+
+#if SANITIZER_RELACY_SCHEDULER
+extern ::__tsan::__relacy::SchedulerEngine _scheduler_engine;
+#endif
+
 
 #endif // TSAN_FIBER_H

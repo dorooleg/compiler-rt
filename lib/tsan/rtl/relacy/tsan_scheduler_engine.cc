@@ -363,10 +363,12 @@ void SchedulerEngine::Initialize() {
     platform_->Initialize();
 }
 
+
+}
+
+
 }
 
 #if SANITIZER_RELACY_SCHEDULER
-__relacy::SchedulerEngine _scheduler_engine;
+::__tsan::__relacy::SchedulerEngine _scheduler_engine;
 #endif
-
-}
