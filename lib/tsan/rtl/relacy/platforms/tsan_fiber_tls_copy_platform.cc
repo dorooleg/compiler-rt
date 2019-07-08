@@ -44,7 +44,7 @@ FiberTlsCopyPlatform::FiberTlsCopyPlatform(ThreadsBox& threads_box)
     GetThreadStackAndTls(true, &stk_addr, &stk_size, &tls_addr_, &tls_size_);
 
     FiberContext *current_thread = static_cast<FiberContext *>(InternalCalloc(1, sizeof(FiberContext)));
-    new (current_thread) FiberContext{static_cast<struct ucontext_t *>(InternalCalloc(1, sizeof(ucontext_t))),
+    new (current_thread) FiberContext{static_cast<ucontext_t *>(InternalCalloc(1, sizeof(ucontext_t))),
                                      reinterpret_cast<char *>(InternalCalloc(tls_size_, 1)),
                                      current_thread,
                                      0};
@@ -72,7 +72,7 @@ ThreadContext* FiberTlsCopyPlatform::Create(void *th, void *attr, void (*callbac
     (void) attr;
 
     FiberContext *fiber_context = static_cast<FiberContext *>(InternalCalloc(1, sizeof(FiberContext)));
-    new(fiber_context) FiberContext{static_cast<struct ucontext_t *>(InternalCalloc(1, sizeof(ucontext_t)))};
+    new(fiber_context) FiberContext{static_cast<ucontext_t *>(InternalCalloc(1, sizeof(ucontext_t)))};
 
     if (getcontext(fiber_context->GetFiberContext()) == -1) {
         Printf("FATAL: ThreadSanitizer getcontext error in the moment creating fiber\n");

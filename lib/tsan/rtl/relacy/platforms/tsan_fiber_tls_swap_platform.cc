@@ -55,7 +55,7 @@ FiberTlsSwapPlatform::FiberTlsSwapPlatform(ThreadsBox &threads_box)
     tls_addr = get_tls_addr();
 
     FiberContext *current_thread = static_cast<FiberContext *>(InternalCalloc(1, sizeof(FiberContext)));
-    new(current_thread) FiberContext{static_cast<struct ucontext_t *>(InternalCalloc(1, sizeof(ucontext_t))),
+    new(current_thread) FiberContext{static_cast<ucontext_t *>(InternalCalloc(1, sizeof(ucontext_t))),
                                      reinterpret_cast<char *>(tls_addr) - tls_size_,
                                      current_thread,
                                      0};
@@ -83,7 +83,7 @@ ThreadContext *FiberTlsSwapPlatform::Create(void *th, void *attr, void (*callbac
     (void) attr;
 
     FiberContext *fiber_context = static_cast<FiberContext *>(InternalCalloc(1, sizeof(FiberContext)));
-    new(fiber_context) FiberContext{static_cast<struct ucontext_t *>(InternalCalloc(1, sizeof(ucontext_t)))};
+    new(fiber_context) FiberContext{static_cast<ucontext_t *>(InternalCalloc(1, sizeof(ucontext_t)))};
 
     if (getcontext(fiber_context->GetFiberContext()) == -1) {
         Printf("FATAL: ThreadSanitizer getcontext error in the moment creating fiber\n");
