@@ -81,3 +81,5 @@ TSAN_FLAG(bool, ignore_noninstrumented_modules, SANITIZER_MAC ? true : false,
           "modules.")
 TSAN_FLAG(bool, shared_ptr_interceptor, true,
           "Track atomic reference counting in libc++ shared_ptr and weak_ptr.")
+TSAN_FLAG(const char *, fuzzing_scheduler, "",
+          "Choosing fuzzing scheduler")

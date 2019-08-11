@@ -24,6 +24,7 @@
 #include "tsan_flags.h"
 #include "tsan_interface.h"
 #include "tsan_rtl.h"
+#include "fuzzing_scheduler/fuzzing_scheduler.h"
 
 using namespace __tsan;  // NOLINT
 
@@ -57,11 +58,13 @@ static bool IsAcqRelOrder(morder mo) {
 template<typename T> T func_xchg(volatile T *v, T op) {
   T res = __sync_lock_test_and_set(v, op);
   // __sync_lock_test_and_set does not contain full barrier.
+  GetFuzzingScheduler().SynchronizationPoint();
   __sync_synchronize();
   return res;
 }
 
 template<typename T> T func_add(volatile T *v, T op) {
+  GetFuzzingScheduler().SynchronizationPoint();
   return __sync_fetch_and_add(v, op);
 }
 
@@ -521,200 +524,237 @@ static void AtomicStatInc(ThreadState *thr, uptr size, morder mo, StatType t) {
 extern "C" {
 SANITIZER_INTERFACE_ATTRIBUTE
 a8 __tsan_atomic8_load(const volatile a8 *a, morder mo) {
+  GetFuzzingScheduler().SynchronizationPoint();
   SCOPED_ATOMIC(Load, a, mo);
 }
 
 SANITIZER_INTERFACE_ATTRIBUTE
 a16 __tsan_atomic16_load(const volatile a16 *a, morder mo) {
+  GetFuzzingScheduler().SynchronizationPoint();
   SCOPED_ATOMIC(Load, a, mo);
 }
 
 SANITIZER_INTERFACE_ATTRIBUTE
 a32 __tsan_atomic32_load(const volatile a32 *a, morder mo) {
+  GetFuzzingScheduler().SynchronizationPoint();
   SCOPED_ATOMIC(Load, a, mo);
 }
 
 SANITIZER_INTERFACE_ATTRIBUTE
 a64 __tsan_atomic64_load(const volatile a64 *a, morder mo) {
+  GetFuzzingScheduler().SynchronizationPoint();
   SCOPED_ATOMIC(Load, a, mo);
 }
 
 #if __TSAN_HAS_INT128
 SANITIZER_INTERFACE_ATTRIBUTE
 a128 __tsan_atomic128_load(const volatile a128 *a, morder mo) {
+  GetFuzzingScheduler().SynchronizationPoint();
   SCOPED_ATOMIC(Load, a, mo);
 }
 #endif
 
 SANITIZER_INTERFACE_ATTRIBUTE
 void __tsan_atomic8_store(volatile a8 *a, a8 v, morder mo) {
+  GetFuzzingScheduler().SynchronizationPoint();
   SCOPED_ATOMIC(Store, a, v, mo);
 }
 
 SANITIZER_INTERFACE_ATTRIBUTE
 void __tsan_atomic16_store(volatile a16 *a, a16 v, morder mo) {
+  GetFuzzingScheduler().SynchronizationPoint();
   SCOPED_ATOMIC(Store, a, v, mo);
 }
 
 SANITIZER_INTERFACE_ATTRIBUTE
 void __tsan_atomic32_store(volatile a32 *a, a32 v, morder mo) {
+  GetFuzzingScheduler().SynchronizationPoint();
   SCOPED_ATOMIC(Store, a, v, mo);
 }
 
 SANITIZER_INTERFACE_ATTRIBUTE
 void __tsan_atomic64_store(volatile a64 *a, a64 v, morder mo) {
+  GetFuzzingScheduler().SynchronizationPoint();
   SCOPED_ATOMIC(Store, a, v, mo);
 }
 
 #if __TSAN_HAS_INT128
 SANITIZER_INTERFACE_ATTRIBUTE
 void __tsan_atomic128_store(volatile a128 *a, a128 v, morder mo) {
+  GetFuzzingScheduler().SynchronizationPoint();
   SCOPED_ATOMIC(Store, a, v, mo);
 }
 #endif
 
 SANITIZER_INTERFACE_ATTRIBUTE
 a8 __tsan_atomic8_exchange(volatile a8 *a, a8 v, morder mo) {
+  GetFuzzingScheduler().SynchronizationPoint();
   SCOPED_ATOMIC(Exchange, a, v, mo);
 }
 
 SANITIZER_INTERFACE_ATTRIBUTE
 a16 __tsan_atomic16_exchange(volatile a16 *a, a16 v, morder mo) {
+  GetFuzzingScheduler().SynchronizationPoint();
   SCOPED_ATOMIC(Exchange, a, v, mo);
 }
 
 SANITIZER_INTERFACE_ATTRIBUTE
 a32 __tsan_atomic32_exchange(volatile a32 *a, a32 v, morder mo) {
+  GetFuzzingScheduler().SynchronizationPoint();
   SCOPED_ATOMIC(Exchange, a, v, mo);
 }
 
 SANITIZER_INTERFACE_ATTRIBUTE
 a64 __tsan_atomic64_exchange(volatile a64 *a, a64 v, morder mo) {
+  GetFuzzingScheduler().SynchronizationPoint();
   SCOPED_ATOMIC(Exchange, a, v, mo);
 }
 
 #if __TSAN_HAS_INT128
 SANITIZER_INTERFACE_ATTRIBUTE
 a128 __tsan_atomic128_exchange(volatile a128 *a, a128 v, morder mo) {
+  GetFuzzingScheduler().SynchronizationPoint();
   SCOPED_ATOMIC(Exchange, a, v, mo);
 }
 #endif
 
 SANITIZER_INTERFACE_ATTRIBUTE
 a8 __tsan_atomic8_fetch_add(volatile a8 *a, a8 v, morder mo) {
+  GetFuzzingScheduler().SynchronizationPoint();
   SCOPED_ATOMIC(FetchAdd, a, v, mo);
 }
 
 SANITIZER_INTERFACE_ATTRIBUTE
 a16 __tsan_atomic16_fetch_add(volatile a16 *a, a16 v, morder mo) {
+  GetFuzzingScheduler().SynchronizationPoint();
   SCOPED_ATOMIC(FetchAdd, a, v, mo);
 }
 
 SANITIZER_INTERFACE_ATTRIBUTE
 a32 __tsan_atomic32_fetch_add(volatile a32 *a, a32 v, morder mo) {
+  GetFuzzingScheduler().SynchronizationPoint();
   SCOPED_ATOMIC(FetchAdd, a, v, mo);
 }
 
 SANITIZER_INTERFACE_ATTRIBUTE
 a64 __tsan_atomic64_fetch_add(volatile a64 *a, a64 v, morder mo) {
+  GetFuzzingScheduler().SynchronizationPoint();
   SCOPED_ATOMIC(FetchAdd, a, v, mo);
 }
 
 #if __TSAN_HAS_INT128
 SANITIZER_INTERFACE_ATTRIBUTE
 a128 __tsan_atomic128_fetch_add(volatile a128 *a, a128 v, morder mo) {
+  GetFuzzingScheduler().SynchronizationPoint();
   SCOPED_ATOMIC(FetchAdd, a, v, mo);
 }
 #endif
 
 SANITIZER_INTERFACE_ATTRIBUTE
 a8 __tsan_atomic8_fetch_sub(volatile a8 *a, a8 v, morder mo) {
+  GetFuzzingScheduler().SynchronizationPoint();
   SCOPED_ATOMIC(FetchSub, a, v, mo);
 }
 
 SANITIZER_INTERFACE_ATTRIBUTE
 a16 __tsan_atomic16_fetch_sub(volatile a16 *a, a16 v, morder mo) {
+  GetFuzzingScheduler().SynchronizationPoint();
   SCOPED_ATOMIC(FetchSub, a, v, mo);
 }
 
 SANITIZER_INTERFACE_ATTRIBUTE
 a32 __tsan_atomic32_fetch_sub(volatile a32 *a, a32 v, morder mo) {
+  GetFuzzingScheduler().SynchronizationPoint();
   SCOPED_ATOMIC(FetchSub, a, v, mo);
 }
 
 SANITIZER_INTERFACE_ATTRIBUTE
 a64 __tsan_atomic64_fetch_sub(volatile a64 *a, a64 v, morder mo) {
+  GetFuzzingScheduler().SynchronizationPoint();
   SCOPED_ATOMIC(FetchSub, a, v, mo);
 }
 
 #if __TSAN_HAS_INT128
 SANITIZER_INTERFACE_ATTRIBUTE
 a128 __tsan_atomic128_fetch_sub(volatile a128 *a, a128 v, morder mo) {
+  GetFuzzingScheduler().SynchronizationPoint();
   SCOPED_ATOMIC(FetchSub, a, v, mo);
 }
 #endif
 
 SANITIZER_INTERFACE_ATTRIBUTE
 a8 __tsan_atomic8_fetch_and(volatile a8 *a, a8 v, morder mo) {
+  GetFuzzingScheduler().SynchronizationPoint();
   SCOPED_ATOMIC(FetchAnd, a, v, mo);
 }
 
 SANITIZER_INTERFACE_ATTRIBUTE
 a16 __tsan_atomic16_fetch_and(volatile a16 *a, a16 v, morder mo) {
+  GetFuzzingScheduler().SynchronizationPoint();
   SCOPED_ATOMIC(FetchAnd, a, v, mo);
 }
 
 SANITIZER_INTERFACE_ATTRIBUTE
 a32 __tsan_atomic32_fetch_and(volatile a32 *a, a32 v, morder mo) {
+  GetFuzzingScheduler().SynchronizationPoint();
   SCOPED_ATOMIC(FetchAnd, a, v, mo);
 }
 
 SANITIZER_INTERFACE_ATTRIBUTE
 a64 __tsan_atomic64_fetch_and(volatile a64 *a, a64 v, morder mo) {
+  GetFuzzingScheduler().SynchronizationPoint();
   SCOPED_ATOMIC(FetchAnd, a, v, mo);
 }
 
 #if __TSAN_HAS_INT128
 SANITIZER_INTERFACE_ATTRIBUTE
 a128 __tsan_atomic128_fetch_and(volatile a128 *a, a128 v, morder mo) {
+  GetFuzzingScheduler().SynchronizationPoint();
   SCOPED_ATOMIC(FetchAnd, a, v, mo);
 }
 #endif
 
 SANITIZER_INTERFACE_ATTRIBUTE
 a8 __tsan_atomic8_fetch_or(volatile a8 *a, a8 v, morder mo) {
+  GetFuzzingScheduler().SynchronizationPoint();
   SCOPED_ATOMIC(FetchOr, a, v, mo);
 }
 
 SANITIZER_INTERFACE_ATTRIBUTE
 a16 __tsan_atomic16_fetch_or(volatile a16 *a, a16 v, morder mo) {
+  GetFuzzingScheduler().SynchronizationPoint();
   SCOPED_ATOMIC(FetchOr, a, v, mo);
 }
 
 SANITIZER_INTERFACE_ATTRIBUTE
 a32 __tsan_atomic32_fetch_or(volatile a32 *a, a32 v, morder mo) {
+  GetFuzzingScheduler().SynchronizationPoint();
   SCOPED_ATOMIC(FetchOr, a, v, mo);
 }
 
 SANITIZER_INTERFACE_ATTRIBUTE
 a64 __tsan_atomic64_fetch_or(volatile a64 *a, a64 v, morder mo) {
+  GetFuzzingScheduler().SynchronizationPoint();
   SCOPED_ATOMIC(FetchOr, a, v, mo);
 }
 
 #if __TSAN_HAS_INT128
 SANITIZER_INTERFACE_ATTRIBUTE
 a128 __tsan_atomic128_fetch_or(volatile a128 *a, a128 v, morder mo) {
+  GetFuzzingScheduler().SynchronizationPoint();
   SCOPED_ATOMIC(FetchOr, a, v, mo);
 }
 #endif
 
 SANITIZER_INTERFACE_ATTRIBUTE
 a8 __tsan_atomic8_fetch_xor(volatile a8 *a, a8 v, morder mo) {
+  GetFuzzingScheduler().SynchronizationPoint();
   SCOPED_ATOMIC(FetchXor, a, v, mo);
 }
 
 SANITIZER_INTERFACE_ATTRIBUTE
 a16 __tsan_atomic16_fetch_xor(volatile a16 *a, a16 v, morder mo) {
+  GetFuzzingScheduler().SynchronizationPoint();
   SCOPED_ATOMIC(FetchXor, a, v, mo);
 }
 
@@ -725,39 +765,46 @@ a32 __tsan_atomic32_fetch_xor(volatile a32 *a, a32 v, morder mo) {
 
 SANITIZER_INTERFACE_ATTRIBUTE
 a64 __tsan_atomic64_fetch_xor(volatile a64 *a, a64 v, morder mo) {
+  GetFuzzingScheduler().SynchronizationPoint();
   SCOPED_ATOMIC(FetchXor, a, v, mo);
 }
 
 #if __TSAN_HAS_INT128
 SANITIZER_INTERFACE_ATTRIBUTE
 a128 __tsan_atomic128_fetch_xor(volatile a128 *a, a128 v, morder mo) {
+  GetFuzzingScheduler().SynchronizationPoint();
   SCOPED_ATOMIC(FetchXor, a, v, mo);
 }
 #endif
 
 SANITIZER_INTERFACE_ATTRIBUTE
 a8 __tsan_atomic8_fetch_nand(volatile a8 *a, a8 v, morder mo) {
+  GetFuzzingScheduler().SynchronizationPoint();
   SCOPED_ATOMIC(FetchNand, a, v, mo);
 }
 
 SANITIZER_INTERFACE_ATTRIBUTE
 a16 __tsan_atomic16_fetch_nand(volatile a16 *a, a16 v, morder mo) {
+  GetFuzzingScheduler().SynchronizationPoint();
   SCOPED_ATOMIC(FetchNand, a, v, mo);
 }
 
 SANITIZER_INTERFACE_ATTRIBUTE
 a32 __tsan_atomic32_fetch_nand(volatile a32 *a, a32 v, morder mo) {
+  GetFuzzingScheduler().SynchronizationPoint();
   SCOPED_ATOMIC(FetchNand, a, v, mo);
 }
 
 SANITIZER_INTERFACE_ATTRIBUTE
 a64 __tsan_atomic64_fetch_nand(volatile a64 *a, a64 v, morder mo) {
+  GetFuzzingScheduler().SynchronizationPoint();
   SCOPED_ATOMIC(FetchNand, a, v, mo);
 }
 
 #if __TSAN_HAS_INT128
 SANITIZER_INTERFACE_ATTRIBUTE
 a128 __tsan_atomic128_fetch_nand(volatile a128 *a, a128 v, morder mo) {
+  GetFuzzingScheduler().SynchronizationPoint();
   SCOPED_ATOMIC(FetchNand, a, v, mo);
 }
 #endif
@@ -765,24 +812,28 @@ a128 __tsan_atomic128_fetch_nand(volatile a128 *a, a128 v, morder mo) {
 SANITIZER_INTERFACE_ATTRIBUTE
 int __tsan_atomic8_compare_exchange_strong(volatile a8 *a, a8 *c, a8 v,
     morder mo, morder fmo) {
+  GetFuzzingScheduler().SynchronizationPoint();
   SCOPED_ATOMIC(CAS, a, c, v, mo, fmo);
 }
 
 SANITIZER_INTERFACE_ATTRIBUTE
 int __tsan_atomic16_compare_exchange_strong(volatile a16 *a, a16 *c, a16 v,
     morder mo, morder fmo) {
+  GetFuzzingScheduler().SynchronizationPoint();
   SCOPED_ATOMIC(CAS, a, c, v, mo, fmo);
 }
 
 SANITIZER_INTERFACE_ATTRIBUTE
 int __tsan_atomic32_compare_exchange_strong(volatile a32 *a, a32 *c, a32 v,
     morder mo, morder fmo) {
+  GetFuzzingScheduler().SynchronizationPoint();
   SCOPED_ATOMIC(CAS, a, c, v, mo, fmo);
 }
 
 SANITIZER_INTERFACE_ATTRIBUTE
 int __tsan_atomic64_compare_exchange_strong(volatile a64 *a, a64 *c, a64 v,
     morder mo, morder fmo) {
+  GetFuzzingScheduler().SynchronizationPoint();
   SCOPED_ATOMIC(CAS, a, c, v, mo, fmo);
 }
 
@@ -790,6 +841,7 @@ int __tsan_atomic64_compare_exchange_strong(volatile a64 *a, a64 *c, a64 v,
 SANITIZER_INTERFACE_ATTRIBUTE
 int __tsan_atomic128_compare_exchange_strong(volatile a128 *a, a128 *c, a128 v,
     morder mo, morder fmo) {
+  GetFuzzingScheduler().SynchronizationPoint();
   SCOPED_ATOMIC(CAS, a, c, v, mo, fmo);
 }
 #endif
@@ -797,24 +849,28 @@ int __tsan_atomic128_compare_exchange_strong(volatile a128 *a, a128 *c, a128 v,
 SANITIZER_INTERFACE_ATTRIBUTE
 int __tsan_atomic8_compare_exchange_weak(volatile a8 *a, a8 *c, a8 v,
     morder mo, morder fmo) {
+  GetFuzzingScheduler().SynchronizationPoint();
   SCOPED_ATOMIC(CAS, a, c, v, mo, fmo);
 }
 
 SANITIZER_INTERFACE_ATTRIBUTE
 int __tsan_atomic16_compare_exchange_weak(volatile a16 *a, a16 *c, a16 v,
     morder mo, morder fmo) {
+  GetFuzzingScheduler().SynchronizationPoint();
   SCOPED_ATOMIC(CAS, a, c, v, mo, fmo);
 }
 
 SANITIZER_INTERFACE_ATTRIBUTE
 int __tsan_atomic32_compare_exchange_weak(volatile a32 *a, a32 *c, a32 v,
     morder mo, morder fmo) {
+  GetFuzzingScheduler().SynchronizationPoint();
   SCOPED_ATOMIC(CAS, a, c, v, mo, fmo);
 }
 
 SANITIZER_INTERFACE_ATTRIBUTE
 int __tsan_atomic64_compare_exchange_weak(volatile a64 *a, a64 *c, a64 v,
     morder mo, morder fmo) {
+  GetFuzzingScheduler().SynchronizationPoint();
   SCOPED_ATOMIC(CAS, a, c, v, mo, fmo);
 }
 
@@ -822,6 +878,7 @@ int __tsan_atomic64_compare_exchange_weak(volatile a64 *a, a64 *c, a64 v,
 SANITIZER_INTERFACE_ATTRIBUTE
 int __tsan_atomic128_compare_exchange_weak(volatile a128 *a, a128 *c, a128 v,
     morder mo, morder fmo) {
+  GetFuzzingScheduler().SynchronizationPoint();
   SCOPED_ATOMIC(CAS, a, c, v, mo, fmo);
 }
 #endif
@@ -829,24 +886,28 @@ int __tsan_atomic128_compare_exchange_weak(volatile a128 *a, a128 *c, a128 v,
 SANITIZER_INTERFACE_ATTRIBUTE
 a8 __tsan_atomic8_compare_exchange_val(volatile a8 *a, a8 c, a8 v,
     morder mo, morder fmo) {
+  GetFuzzingScheduler().SynchronizationPoint();
   SCOPED_ATOMIC(CAS, a, c, v, mo, fmo);
 }
 
 SANITIZER_INTERFACE_ATTRIBUTE
 a16 __tsan_atomic16_compare_exchange_val(volatile a16 *a, a16 c, a16 v,
     morder mo, morder fmo) {
+  GetFuzzingScheduler().SynchronizationPoint();
   SCOPED_ATOMIC(CAS, a, c, v, mo, fmo);
 }
 
 SANITIZER_INTERFACE_ATTRIBUTE
 a32 __tsan_atomic32_compare_exchange_val(volatile a32 *a, a32 c, a32 v,
     morder mo, morder fmo) {
+  GetFuzzingScheduler().SynchronizationPoint();
   SCOPED_ATOMIC(CAS, a, c, v, mo, fmo);
 }
 
 SANITIZER_INTERFACE_ATTRIBUTE
 a64 __tsan_atomic64_compare_exchange_val(volatile a64 *a, a64 c, a64 v,
     morder mo, morder fmo) {
+  GetFuzzingScheduler().SynchronizationPoint();
   SCOPED_ATOMIC(CAS, a, c, v, mo, fmo);
 }
 
@@ -854,12 +915,14 @@ a64 __tsan_atomic64_compare_exchange_val(volatile a64 *a, a64 c, a64 v,
 SANITIZER_INTERFACE_ATTRIBUTE
 a128 __tsan_atomic128_compare_exchange_val(volatile a128 *a, a128 c, a128 v,
     morder mo, morder fmo) {
+  GetFuzzingScheduler().SynchronizationPoint();
   SCOPED_ATOMIC(CAS, a, c, v, mo, fmo);
 }
 #endif
 
 SANITIZER_INTERFACE_ATTRIBUTE
 void __tsan_atomic_thread_fence(morder mo) {
+  GetFuzzingScheduler().SynchronizationPoint();
   char* a = 0;
   SCOPED_ATOMIC(Fence, mo);
 }
@@ -896,47 +959,56 @@ void __tsan_atomic_signal_fence(morder mo) {
 extern "C" {
 SANITIZER_INTERFACE_ATTRIBUTE
 void __tsan_go_atomic32_load(ThreadState *thr, uptr cpc, uptr pc, u8 *a) {
+  GetFuzzingScheduler().SynchronizationPoint();
   ATOMIC_RET(Load, *(a32*)(a+8), *(a32**)a, mo_acquire);
 }
 
 SANITIZER_INTERFACE_ATTRIBUTE
 void __tsan_go_atomic64_load(ThreadState *thr, uptr cpc, uptr pc, u8 *a) {
+  GetFuzzingScheduler().SynchronizationPoint();
   ATOMIC_RET(Load, *(a64*)(a+8), *(a64**)a, mo_acquire);
 }
 
 SANITIZER_INTERFACE_ATTRIBUTE
 void __tsan_go_atomic32_store(ThreadState *thr, uptr cpc, uptr pc, u8 *a) {
+  GetFuzzingScheduler().SynchronizationPoint();
   ATOMIC(Store, *(a32**)a, *(a32*)(a+8), mo_release);
 }
 
 SANITIZER_INTERFACE_ATTRIBUTE
 void __tsan_go_atomic64_store(ThreadState *thr, uptr cpc, uptr pc, u8 *a) {
+  GetFuzzingScheduler().SynchronizationPoint();
   ATOMIC(Store, *(a64**)a, *(a64*)(a+8), mo_release);
 }
 
 SANITIZER_INTERFACE_ATTRIBUTE
 void __tsan_go_atomic32_fetch_add(ThreadState *thr, uptr cpc, uptr pc, u8 *a) {
+  GetFuzzingScheduler().SynchronizationPoint();
   ATOMIC_RET(FetchAdd, *(a32*)(a+16), *(a32**)a, *(a32*)(a+8), mo_acq_rel);
 }
 
 SANITIZER_INTERFACE_ATTRIBUTE
 void __tsan_go_atomic64_fetch_add(ThreadState *thr, uptr cpc, uptr pc, u8 *a) {
+  GetFuzzingScheduler().SynchronizationPoint();
   ATOMIC_RET(FetchAdd, *(a64*)(a+16), *(a64**)a, *(a64*)(a+8), mo_acq_rel);
 }
 
 SANITIZER_INTERFACE_ATTRIBUTE
 void __tsan_go_atomic32_exchange(ThreadState *thr, uptr cpc, uptr pc, u8 *a) {
+  GetFuzzingScheduler().SynchronizationPoint();
   ATOMIC_RET(Exchange, *(a32*)(a+16), *(a32**)a, *(a32*)(a+8), mo_acq_rel);
 }
 
 SANITIZER_INTERFACE_ATTRIBUTE
 void __tsan_go_atomic64_exchange(ThreadState *thr, uptr cpc, uptr pc, u8 *a) {
+  GetFuzzingScheduler().SynchronizationPoint();
   ATOMIC_RET(Exchange, *(a64*)(a+16), *(a64**)a, *(a64*)(a+8), mo_acq_rel);
 }
 
 SANITIZER_INTERFACE_ATTRIBUTE
 void __tsan_go_atomic32_compare_exchange(
     ThreadState *thr, uptr cpc, uptr pc, u8 *a) {
+  GetFuzzingScheduler().SynchronizationPoint();
   a32 cur = 0;
   a32 cmp = *(a32*)(a+8);
   ATOMIC_RET(CAS, cur, *(a32**)a, cmp, *(a32*)(a+12), mo_acq_rel, mo_acquire);
@@ -946,6 +1018,7 @@ void __tsan_go_atomic32_compare_exchange(
 SANITIZER_INTERFACE_ATTRIBUTE
 void __tsan_go_atomic64_compare_exchange(
     ThreadState *thr, uptr cpc, uptr pc, u8 *a) {
+  GetFuzzingScheduler().SynchronizationPoint();
   a64 cur = 0;
   a64 cmp = *(a64*)(a+8);
   ATOMIC_RET(CAS, cur, *(a64**)a, cmp, *(a64*)(a+16), mo_acq_rel, mo_acquire);
