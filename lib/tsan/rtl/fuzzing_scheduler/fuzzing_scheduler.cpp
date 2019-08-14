@@ -34,35 +34,6 @@ struct RandomFuzzingScheduler : IFuzzingScheduler {
 
 
 private:
-  class Stats {
-    u64 count_running = 0;
-    u64 count_wait = 0;
-  public:
-    void IncRunning() {
-      __atomic_add_fetch(&count_running, 1, __ATOMIC_SEQ_CST);
-    }
-
-    void DecRunning() {
-      __atomic_add_fetch(&count_running, -1, __ATOMIC_SEQ_CST);
-    }
-
-    u64 CountRunning() {
-      return __atomic_load_n(&count_running, __ATOMIC_SEQ_CST);
-    }
-
-    void IncWait() {
-      __atomic_add_fetch(&count_wait, 1, __ATOMIC_SEQ_CST);
-    }
-
-    void DecWait() {
-      __atomic_add_fetch(&count_wait, -1, __ATOMIC_SEQ_CST);
-    }
-
-    u64 CountWait() {
-      return __atomic_load_n(&count_wait, __ATOMIC_SEQ_CST);
-    }
-  };
-
   enum class ThreadState {
     UNKNOWN,
     RUNNING,
@@ -115,21 +86,6 @@ private:
       return next_tid;
   }
 
-  void PrintStates() {
-      static bool flag = false;
-      while (__sync_val_compare_and_swap(&flag, false, true) != false) {
-        internal_sched_yield();
-      }
-
-      const u64 local_max_tid = __atomic_load_n(&max_tid, __ATOMIC_SEQ_CST);
-      for (u64 i = 1; i <= local_max_tid; i++) {
-        auto state = __atomic_load_n(&contexts[i].state, __ATOMIC_SEQ_CST);
-        Printf("(%d,%d) ", i, state);
-      }
-      Printf("\n");
-      __atomic_store_n(&flag, false, __ATOMIC_SEQ_CST);
-  }
-
   void* WatchDog() {
     while (true) {
       usleep(200 * 1000);
@@ -150,7 +106,6 @@ private:
         __atomic_store_n(&contexts[next_tid].start_time, NanoTime(), __ATOMIC_SEQ_CST);
         __atomic_store_n(&contexts[next_tid].state, ThreadState::RUNNING, __ATOMIC_SEQ_CST);
       }
-      //PrintStates();
     }
     return nullptr;
   }
